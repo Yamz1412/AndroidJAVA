@@ -3,6 +3,7 @@ package com.app.SalesInventory;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -11,6 +12,7 @@ import androidx.cardview.widget.CardView;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.charts.PieChart;
@@ -19,7 +21,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends BaseActivity {
     private CardView cardTotalSales;
     private CardView cardInventoryValue;
     private CardView cardLowStock;
@@ -43,10 +45,11 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView rvRecentActivity;
     private RecentActivityAdapter activityAdapter;
     private ProgressBar progressBar;
-    private MaterialButton btnRefresh;
     private TextView tvLastUpdated;
     private DashboardViewModel viewModel;
     private AuthManager authManager;
+    private ImageButton btnSettings;
+    private SwipeRefreshLayout swipeRefresh;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initializeUI() {
+        swipeRefresh = findViewById(R.id.swipe_refresh);
         cardTotalSales = findViewById(R.id.card_total_sales);
         cardInventoryValue = findViewById(R.id.card_inventory_value);
         cardLowStock = findViewById(R.id.card_low_stock);
@@ -85,9 +89,9 @@ public class MainActivity extends AppCompatActivity {
         rvRecentActivity.setAdapter(activityAdapter);
         rvRecentActivity.setLayoutManager(new LinearLayoutManager(this));
         progressBar = findViewById(R.id.progress_bar);
-        btnRefresh = findViewById(R.id.btn_refresh);
         tvLastUpdated = findViewById(R.id.tv_last_updated);
         authManager = AuthManager.getInstance();
+        btnSettings = findViewById(R.id.btn_settings);
     }
 
     private void setupViewModel() {
@@ -96,6 +100,7 @@ public class MainActivity extends AppCompatActivity {
             if (metrics != null) {
                 updateStatisticsCards(metrics);
             }
+            if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
         });
         viewModel.getRecentActivities().observe(this, activities -> {
             if (activities != null) {
@@ -108,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
         viewModel.getErrorMessage().observe(this, error -> {
             if (error != null && !error.isEmpty()) {
                 Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
+                if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
             }
         });
     }
@@ -130,35 +136,77 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupClickListeners() {
-        if (btnCreateSale != null) btnCreateSale.setOnClickListener(v -> startActivity(new Intent(this, SellList.class)));
-        if (btnAddProduct != null) btnAddProduct.setOnClickListener(v -> startActivity(new Intent(this, AddProductActivity.class)));
-        if (btnCreatePO != null) btnCreatePO.setOnClickListener(v -> Toast.makeText(MainActivity.this, "Create Purchase Order", Toast.LENGTH_SHORT).show());
-        if (btnViewReports != null) btnViewReports.setOnClickListener(v -> startActivity(new Intent(this, Reports.class)));
-        if (btnInventory != null) btnInventory.setOnClickListener(v -> startActivity(new Intent(this, Inventory.class)));
-        if (btnCustomers != null) btnCustomers.setOnClickListener(v -> Toast.makeText(MainActivity.this, "Customers", Toast.LENGTH_SHORT).show());
-        if (btnRefresh != null) btnRefresh.setOnClickListener(v -> loadDashboardData());
-        if (cardTotalSales != null) cardTotalSales.setOnClickListener(v -> Toast.makeText(MainActivity.this, "Total Sales Today", Toast.LENGTH_SHORT).show());
-        if (cardInventoryValue != null) cardInventoryValue.setOnClickListener(v -> Toast.makeText(MainActivity.this, "Inventory Value", Toast.LENGTH_SHORT).show());
-        if (cardLowStock != null) cardLowStock.setOnClickListener(v -> Toast.makeText(MainActivity.this, "Low Stock Items", Toast.LENGTH_SHORT).show());
-        if (cardPendingOrders != null) cardPendingOrders.setOnClickListener(v -> Toast.makeText(MainActivity.this, "Pending Orders", Toast.LENGTH_SHORT).show());
-        if (cardRevenue != null) cardRevenue.setOnClickListener(v -> Toast.makeText(MainActivity.this, "Revenue Report", Toast.LENGTH_SHORT).show());
-        if (btnManageUsers != null) btnManageUsers.setOnClickListener(v -> {
-            authManager.isCurrentUserAdminAsync(new AuthManager.SimpleCallback() {
-                @Override
-                public void onComplete(boolean success) {
-                    runOnUiThread(() -> {
-                        if (success) {
-                            startActivity(new Intent(MainActivity.this, AdminManageUsersActivity.class));
-                        } else {
-                            Toast.makeText(MainActivity.this, "Admin access required", Toast.LENGTH_LONG).show();
-                        }
-                    });
-                }
+        if (btnSettings != null)
+            btnSettings.setOnClickListener(v ->
+                    startActivity(new Intent(this, SettingsActivity.class)));
+
+        if (btnCreateSale != null)
+            btnCreateSale.setOnClickListener(v ->
+                    startActivity(new Intent(this, SellList.class)));
+
+        if (btnAddProduct != null)
+            btnAddProduct.setOnClickListener(v ->
+                    startActivity(new Intent(this, AddProductActivity.class)));
+
+        if (btnCreatePO != null)
+            btnCreatePO.setOnClickListener(v ->
+                    startActivity(new Intent(this, PurchaseOrderListActivity.class)));
+
+        if (btnViewReports != null)
+            btnViewReports.setOnClickListener(v ->
+                    startActivity(new Intent(this, Reports.class)));
+
+        if (btnInventory != null)
+            btnInventory.setOnClickListener(v ->
+                    startActivity(new Intent(this, Inventory.class)));
+
+        if (btnCustomers != null)
+            btnCustomers.setOnClickListener(v ->
+                    startActivity(new Intent(MainActivity.this, CategoryManagementActivity.class)));
+
+        if (cardTotalSales != null)
+            cardTotalSales.setOnClickListener(v ->
+                    Toast.makeText(MainActivity.this, "Total Sales Today", Toast.LENGTH_SHORT).show());
+
+        if (cardInventoryValue != null)
+            cardInventoryValue.setOnClickListener(v ->
+                    Toast.makeText(MainActivity.this, "Inventory Value", Toast.LENGTH_SHORT).show());
+
+        if (cardLowStock != null)
+            cardLowStock.setOnClickListener(v ->
+                    Toast.makeText(MainActivity.this, "Low Stock Items", Toast.LENGTH_SHORT).show());
+
+        if (cardPendingOrders != null)
+            cardPendingOrders.setOnClickListener(v ->
+                    Toast.makeText(MainActivity.this, "Pending Orders", Toast.LENGTH_SHORT).show());
+
+        if (cardRevenue != null)
+            cardRevenue.setOnClickListener(v ->
+                    Toast.makeText(MainActivity.this, "Revenue Report", Toast.LENGTH_SHORT).show());
+
+        if (btnManageUsers != null)
+            btnManageUsers.setOnClickListener(v -> {
+                authManager.isCurrentUserAdminAsync(new AuthManager.SimpleCallback() {
+                    @Override
+                    public void onComplete(boolean success) {
+                        runOnUiThread(() -> {
+                            if (success) {
+                                startActivity(new Intent(MainActivity.this, AdminManageUsersActivity.class));
+                            } else {
+                                Toast.makeText(MainActivity.this, "Admin access required", Toast.LENGTH_LONG).show();
+                            }
+                        });
+                    }
+                });
             });
-        });
+
+        if (swipeRefresh != null)
+            swipeRefresh.setOnRefreshListener(this::loadDashboardData);
     }
 
     private void loadDashboardData() {
+        if (swipeRefresh != null && !swipeRefresh.isRefreshing())
+            swipeRefresh.setRefreshing(true);
         viewModel.loadDashboardData();
         viewModel.loadRecentActivities();
         viewModel.loadChartData(salesTrendChart, topProductsChart, inventoryStatusChart);

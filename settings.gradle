@@ -1,2 +1,10 @@
-rootProject.name='SalesInventory'
-include ':app'
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = "SalesInventory"
+include(":app")

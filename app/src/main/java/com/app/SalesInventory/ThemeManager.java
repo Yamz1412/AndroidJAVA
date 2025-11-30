@@ -1,8 +1,11 @@
 package com.app.SalesInventory;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import androidx.core.content.ContextCompat;
+import android.os.Build;
+import android.view.View;
+import android.view.Window;
 
 public class ThemeManager {
     private static final String TAG = "ThemeManager";
@@ -39,8 +42,8 @@ public class ThemeManager {
     }
 
     private ThemeManager(Context context) {
-        this.context = context;
-        this.sharedPreferences = context.getSharedPreferences(THEME_PREFS, Context.MODE_PRIVATE);
+        this.context = context.getApplicationContext();
+        this.sharedPreferences = this.context.getSharedPreferences(THEME_PREFS, Context.MODE_PRIVATE);
     }
 
     public static synchronized ThemeManager getInstance(Context context) {
@@ -50,9 +53,6 @@ public class ThemeManager {
         return instance;
     }
 
-    /**
-     * Get current theme
-     */
     public Theme getCurrentTheme() {
         String themeName = sharedPreferences.getString(SELECTED_THEME, Theme.LIGHT.name);
         for (Theme theme : Theme.values()) {
@@ -63,9 +63,6 @@ public class ThemeManager {
         return Theme.LIGHT;
     }
 
-    /**
-     * Set theme
-     */
     public void setTheme(Theme theme) {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString(SELECTED_THEME, theme.name);
@@ -76,30 +73,18 @@ public class ThemeManager {
         android.util.Log.d(TAG, "Theme changed to: " + theme.name);
     }
 
-    /**
-     * Get primary color
-     */
     public int getPrimaryColor() {
         return sharedPreferences.getInt(PRIMARY_COLOR, Theme.LIGHT.primaryColor);
     }
 
-    /**
-     * Get secondary color
-     */
     public int getSecondaryColor() {
         return sharedPreferences.getInt(SECONDARY_COLOR, Theme.LIGHT.secondaryColor);
     }
 
-    /**
-     * Get accent color
-     */
     public int getAccentColor() {
         return sharedPreferences.getInt(ACCENT_COLOR, Theme.LIGHT.accentColor);
     }
 
-    /**
-     * Set custom colors
-     */
     public void setCustomColors(int primaryColor, int secondaryColor, int accentColor) {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString(SELECTED_THEME, Theme.CUSTOM.name);
@@ -110,9 +95,6 @@ public class ThemeManager {
         android.util.Log.d(TAG, "Custom colors set");
     }
 
-    /**
-     * Get all available themes
-     */
     public Theme[] getAvailableThemes() {
         return new Theme[]{
                 Theme.LIGHT,
@@ -122,5 +104,38 @@ public class ThemeManager {
                 Theme.SUNSET,
                 Theme.PURPLE
         };
+    }
+
+    public void applySystemColorsToWindow(Activity activity) {
+        if (activity == null) return;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return;
+        int primary = getPrimaryColor();
+        int secondary = getSecondaryColor();
+        Window window = activity.getWindow();
+        window.setStatusBarColor(primary);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            window.setNavigationBarColor(secondary);
+        } else {
+            window.setNavigationBarColor(primary);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            View decor = window.getDecorView();
+            int flags = decor.getSystemUiVisibility();
+            boolean lightStatusIcons = isColorLight(primary);
+            if (lightStatusIcons) {
+                flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            } else {
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            }
+            decor.setSystemUiVisibility(flags);
+        }
+    }
+
+    private boolean isColorLight(int color) {
+        double r = android.graphics.Color.red(color) / 255.0;
+        double g = android.graphics.Color.green(color) / 255.0;
+        double b = android.graphics.Color.blue(color) / 255.0;
+        double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+        return luminance > 0.5;
     }
 }

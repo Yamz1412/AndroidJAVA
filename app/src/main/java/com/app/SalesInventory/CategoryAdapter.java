@@ -6,22 +6,20 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
 import java.util.List;
 
 public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.CategoryViewHolder> {
+
+    public interface OnCategoryClickListener {
+        void onCategoryClick(Category category);
+    }
 
     private Context context;
     private List<Category> categoryList;
     private OnCategoryClickListener editListener;
     private OnCategoryClickListener deleteListener;
-
-    public interface OnCategoryClickListener {
-        void onCategoryClick(Category category);
-    }
 
     public CategoryAdapter(Context context, List<Category> categoryList,
                            OnCategoryClickListener editListener,
@@ -42,20 +40,13 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.Catego
     @Override
     public void onBindViewHolder(@NonNull CategoryViewHolder holder, int position) {
         Category category = categoryList.get(position);
-
         holder.tvCategoryName.setText(category.getCategoryName());
         holder.tvDescription.setText(category.getDescription());
-
         holder.btnEdit.setOnClickListener(v -> {
-            if (editListener != null) {
-                editListener.onCategoryClick(category);
-            }
+            if (editListener != null) editListener.onCategoryClick(category);
         });
-
         holder.btnDelete.setOnClickListener(v -> {
-            if (deleteListener != null) {
-                deleteListener.onCategoryClick(category);
-            }
+            if (deleteListener != null) deleteListener.onCategoryClick(category);
         });
     }
 
@@ -65,8 +56,10 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.Catego
     }
 
     static class CategoryViewHolder extends RecyclerView.ViewHolder {
-        TextView tvCategoryName, tvDescription;
-        ImageButton btnEdit, btnDelete;
+        TextView tvCategoryName;
+        TextView tvDescription;
+        ImageButton btnEdit;
+        ImageButton btnDelete;
 
         public CategoryViewHolder(@NonNull View itemView) {
             super(itemView);

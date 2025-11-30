@@ -5,7 +5,6 @@ import android.util.Log;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.QuerySnapshot;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -71,15 +70,17 @@ public class CategoryRepository {
         categoryMap.put("description", category.getDescription() != null ? category.getDescription() : "");
         categoryMap.put("color", category.getColor() != null ? category.getColor() : "#000000");
         categoryMap.put("createdAt", firestoreManager.getServerTimestamp());
-        firestoreManager.getDb().collection(firestoreManager.getUserCategoriesPath()).add(categoryMap).addOnSuccessListener(documentReference -> {
-            String categoryId = documentReference.getId();
-            category.setCategoryId(categoryId);
-            listener.onCategoryAdded(categoryId);
-            Log.d(TAG, "Category added: " + categoryId);
-        }).addOnFailureListener(e -> {
-            Log.e(TAG, "Error adding category", e);
-            listener.onError(e.getMessage());
-        });
+        firestoreManager.getDb().collection(firestoreManager.getUserCategoriesPath()).add(categoryMap)
+                .addOnSuccessListener(documentReference -> {
+                    String categoryId = documentReference.getId();
+                    category.setCategoryId(categoryId);
+                    listener.onCategoryAdded(categoryId);
+                    Log.d(TAG, "Category added: " + categoryId);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error adding category", e);
+                    listener.onError(e.getMessage());
+                });
     }
 
     public void updateCategory(Category category, OnCategoryUpdatedListener listener) {
@@ -95,13 +96,17 @@ public class CategoryRepository {
         categoryMap.put("name", category.getCategoryName());
         categoryMap.put("description", category.getDescription() != null ? category.getDescription() : "");
         categoryMap.put("color", category.getColor() != null ? category.getColor() : "#000000");
-        firestoreManager.getDb().collection(firestoreManager.getUserCategoriesPath()).document(category.getCategoryId()).update(categoryMap).addOnSuccessListener(aVoid -> {
-            listener.onCategoryUpdated();
-            Log.d(TAG, "Category updated: " + category.getCategoryId());
-        }).addOnFailureListener(e -> {
-            Log.e(TAG, "Error updating category", e);
-            listener.onError(e.getMessage());
-        });
+        firestoreManager.getDb().collection(firestoreManager.getUserCategoriesPath())
+                .document(category.getCategoryId())
+                .update(categoryMap)
+                .addOnSuccessListener(aVoid -> {
+                    listener.onCategoryUpdated();
+                    Log.d(TAG, "Category updated: " + category.getCategoryId());
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error updating category", e);
+                    listener.onError(e.getMessage());
+                });
     }
 
     public void deleteCategory(String categoryId, OnCategoryDeletedListener listener) {
@@ -109,13 +114,17 @@ public class CategoryRepository {
             listener.onError("User not authenticated");
             return;
         }
-        firestoreManager.getDb().collection(firestoreManager.getUserCategoriesPath()).document(categoryId).delete().addOnSuccessListener(aVoid -> {
-            listener.onCategoryDeleted();
-            Log.d(TAG, "Category deleted: " + categoryId);
-        }).addOnFailureListener(e -> {
-            Log.e(TAG, "Error deleting category", e);
-            listener.onError(e.getMessage());
-        });
+        firestoreManager.getDb().collection(firestoreManager.getUserCategoriesPath())
+                .document(categoryId)
+                .delete()
+                .addOnSuccessListener(aVoid -> {
+                    listener.onCategoryDeleted();
+                    Log.d(TAG, "Category deleted: " + categoryId);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error deleting category", e);
+                    listener.onError(e.getMessage());
+                });
     }
 
     public void getCategoryById(String categoryId, OnCategoryFetchedListener listener) {
@@ -123,20 +132,24 @@ public class CategoryRepository {
             listener.onError("User not authenticated");
             return;
         }
-        firestoreManager.getDb().collection(firestoreManager.getUserCategoriesPath()).document(categoryId).get().addOnSuccessListener(documentSnapshot -> {
-            if (documentSnapshot.exists()) {
-                Category category = documentSnapshot.toObject(Category.class);
-                if (category != null) {
-                    category.setCategoryId(documentSnapshot.getId());
-                    listener.onCategoryFetched(category);
-                    return;
-                }
-            }
-            listener.onError("Category not found");
-        }).addOnFailureListener(e -> {
-            Log.e(TAG, "Error fetching category", e);
-            listener.onError(e.getMessage());
-        });
+        firestoreManager.getDb().collection(firestoreManager.getUserCategoriesPath())
+                .document(categoryId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        Category category = documentSnapshot.toObject(Category.class);
+                        if (category != null) {
+                            category.setCategoryId(documentSnapshot.getId());
+                            listener.onCategoryFetched(category);
+                            return;
+                        }
+                    }
+                    listener.onError("Category not found");
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error fetching category", e);
+                    listener.onError(e.getMessage());
+                });
     }
 
     public interface OnCategoryAddedListener {

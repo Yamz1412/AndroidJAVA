@@ -18,7 +18,7 @@ import com.app.SalesInventory.R;
 import com.app.SalesInventory.ThemeColorPicker;
 import com.app.SalesInventory.ThemeManager;
 
-public class SettingsActivity extends AppCompatActivity {
+public class SettingsActivity extends BaseActivity {
     private static final String TAG = "SettingsActivity";
 
     // UI Components
@@ -176,15 +176,11 @@ public class SettingsActivity extends AppCompatActivity {
         accentColorTV.setText(String.format("#%06X", currentAccent & 0xFFFFFF));
     }
 
-    /**
-     * Apply theme changes
-     */
     private void applyTheme() {
         themeManager.setCustomColors(currentPrimary, currentSecondary, currentAccent);
         Toast.makeText(this, "Theme applied!", Toast.LENGTH_SHORT).show();
         Log.d(TAG, "Theme applied");
 
-        // Optionally restart activity to apply theme
         recreate();
     }
 }

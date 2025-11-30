@@ -4,7 +4,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.os.Bundle;
@@ -17,34 +16,28 @@ import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 
-public class CreatePurchaseOrderActivity extends AppCompatActivity {
+public class CreatePurchaseOrderActivity extends BaseActivity  {
 
-    // UI Components
     private Toolbar toolbar;
     private TextInputEditText etSupplierName, etOrderDate, etExpectedDate, etNotes;
     private RecyclerView recyclerViewItems;
     private TextView tvTotalAmount;
     private Button btnAddItem, btnCreatePO;
 
-    // Adapters & Data
     private POItemAdapter adapter;
     private List<POItem> poItems;
     private DatabaseReference poRef;
     private Calendar calendar;
 
-    // For Product Spinner
     private ProductRepository productRepository;
     private List<Product> availableProducts = new ArrayList<>();
     private List<String> productNames = new ArrayList<>();
@@ -53,22 +46,15 @@ public class CreatePurchaseOrderActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_purchase_order);
-
         initializeViews();
-
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle("Create Purchase Order");
         }
-
-        // Initialize Firebase & Repository
         poRef = FirebaseDatabase.getInstance().getReference("PurchaseOrders");
         productRepository = SalesInventoryApplication.getProductRepository();
-
-        // Load Products for the Spinner
         loadProductsForSpinner();
-
         setupRecyclerView();
         setupListeners();
     }
@@ -83,19 +69,17 @@ public class CreatePurchaseOrderActivity extends AppCompatActivity {
         tvTotalAmount = findViewById(R.id.tvTotalAmount);
         btnAddItem = findViewById(R.id.btnAddItem);
         btnCreatePO = findViewById(R.id.btnCreatePO);
-
         calendar = Calendar.getInstance();
         updateDateLabel(etOrderDate);
     }
 
     private void loadProductsForSpinner() {
-        // Observe existing products to populate the dropdown
         productRepository.getAllProducts().observe(this, products -> {
             if (products != null) {
                 availableProducts.clear();
                 productNames.clear();
+                availableProducts.addAll(products);
                 for (Product p : products) {
-                    availableProducts.add(p);
                     productNames.add(p.getProductName());
                 }
             }
@@ -108,8 +92,7 @@ public class CreatePurchaseOrderActivity extends AppCompatActivity {
             poItems.remove(position);
             adapter.notifyItemRemoved(position);
             calculateTotal();
-        }, () -> calculateTotal());
-
+        }, this::calculateTotal);
         recyclerViewItems.setLayoutManager(new LinearLayoutManager(this));
         recyclerViewItems.setAdapter(adapter);
     }
@@ -136,61 +119,54 @@ public class CreatePurchaseOrderActivity extends AppCompatActivity {
         editText.setText(sdf.format(calendar.getTime()));
     }
 
-    /**
-     * Updated to match your dialog_add_po_item.xml
-     */
     private void showAddItemDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_add_po_item, null);
         builder.setView(view);
-
-        // Create the dialog instance so we can dismiss it later
-        final AlertDialog dialog = builder.create();
-        // Make background transparent for rounded corners if needed
+        AlertDialog dialog = builder.create();
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
-
-        // Initialize Dialog Views
         Spinner spinnerProduct = view.findViewById(R.id.spinnerProduct);
         TextInputEditText etQuantity = view.findViewById(R.id.etQuantity);
         TextInputEditText etUnitPrice = view.findViewById(R.id.etUnitPrice);
         Button btnAdd = view.findViewById(R.id.btnAdd);
         Button btnCancel = view.findViewById(R.id.btnCancel);
-
-        // Setup Spinner
-        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, productNames);
+        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, productNames);
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerProduct.setAdapter(spinnerAdapter);
-
-        // Handle Add Button Click
         btnAdd.setOnClickListener(v -> {
-            String qtyStr = etQuantity.getText().toString();
-            String priceStr = etUnitPrice.getText().toString();
-
+            String qtyStr = etQuantity.getText() != null ? etQuantity.getText().toString().trim() : "";
+            String priceStr = etUnitPrice.getText() != null ? etUnitPrice.getText().toString().trim() : "";
             if (spinnerProduct.getSelectedItem() == null) {
                 Toast.makeText(this, "Please select a product", Toast.LENGTH_SHORT).show();
                 return;
             }
-
             if (!qtyStr.isEmpty() && !priceStr.isEmpty()) {
                 try {
                     int qty = Integer.parseInt(qtyStr);
                     double price = Double.parseDouble(priceStr);
-
-                    // Get selected product name
-                    int selectedPosition = spinnerProduct.getSelectedItemPosition();
-                    String productName = productNames.get(selectedPosition);
-                    // Use product ID from the list if needed, or generate random ID for the PO item
-                    String itemId = UUID.randomUUID().toString();
-
-                    poItems.add(new POItem(itemId, productName, qty, price));
+                    int pos = spinnerProduct.getSelectedItemPosition();
+                    if (pos < 0 || pos >= availableProducts.size()) {
+                        Toast.makeText(this, "Invalid product", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    Product p = availableProducts.get(pos);
+                    POItem existing = null;
+                    for (POItem it : poItems) {
+                        if (it.getProductId().equals(p.getProductId())) {
+                            existing = it;
+                            break;
+                        }
+                    }
+                    if (existing != null) {
+                        existing.setQuantity(existing.getQuantity() + qty);
+                    } else {
+                        poItems.add(new POItem(p.getProductId(), p.getProductName(), qty, price));
+                    }
                     adapter.notifyDataSetChanged();
                     calculateTotal();
-
-                    dialog.dismiss(); // Close dialog
-
+                    dialog.dismiss();
                 } catch (NumberFormatException e) {
                     Toast.makeText(this, "Invalid number format", Toast.LENGTH_SHORT).show();
                 }
@@ -198,10 +174,7 @@ public class CreatePurchaseOrderActivity extends AppCompatActivity {
                 Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
             }
         });
-
-        // Handle Cancel Button Click
         btnCancel.setOnClickListener(v -> dialog.dismiss());
-
         dialog.show();
     }
 
@@ -227,21 +200,32 @@ public class CreatePurchaseOrderActivity extends AppCompatActivity {
         }
 
         String id = poRef.push().getKey();
+        if (id == null) {
+            Toast.makeText(this, "Error generating ID", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         String poNumber = "PO-" + System.currentTimeMillis() / 1000;
 
         double total = 0;
         for (POItem item : poItems) total += item.getSubtotal();
 
-        PurchaseOrder po = new PurchaseOrder(id, poNumber, supplier, "Pending", System.currentTimeMillis(), total);
+        PurchaseOrder po = new PurchaseOrder(
+                id,
+                poNumber,
+                supplier,
+                "Pending",
+                System.currentTimeMillis(),
+                total,
+                new ArrayList<>(poItems)
+        );
 
-        if (id != null) {
-            poRef.child(id).setValue(po).addOnSuccessListener(aVoid -> {
-                Toast.makeText(this, "Purchase Order Created Successfully", Toast.LENGTH_SHORT).show();
-                finish();
-            }).addOnFailureListener(e -> {
-                Toast.makeText(this, "Error saving order: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            });
-        }
+        poRef.child(id).setValue(po)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Purchase Order created", Toast.LENGTH_SHORT).show();
+                    finish();
+                })
+                .addOnFailureListener(e -> Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
     @Override

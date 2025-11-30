@@ -6,6 +6,8 @@ public class Category {
     private String categoryName;
     private String description;
     private long timestamp;
+    private String type;
+    private boolean active;
 
     public Category() {
     }
@@ -15,6 +17,8 @@ public class Category {
         this.categoryName = categoryName;
         this.description = description;
         this.timestamp = timestamp;
+        this.type = "Inventory";
+        this.active = true;
     }
 
     public String getCategoryId() {
@@ -55,5 +59,21 @@ public class Category {
 
     public void setColor(String color) {
         this.color = color;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 }

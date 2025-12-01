@@ -27,11 +27,13 @@ public class ProductEntity {
     public boolean isActive;
     public long lastUpdated;
     public String syncState;
+    public String imagePath;
+    public String imageUrl;
 
     public ProductEntity() {}
 
     @Ignore
-    public ProductEntity(String productName, String categoryId, String categoryName, String description, double costPrice, double sellingPrice, int quantity, int reorderLevel, int criticalLevel, int ceilingLevel, String unit, String barcode, String supplier, long dateAdded, String addedBy, boolean isActive, long lastUpdated, String syncState) {
+    public ProductEntity(String productName, String categoryId, String categoryName, String description, double costPrice, double sellingPrice, int quantity, int reorderLevel, int criticalLevel, int ceilingLevel, String unit, String barcode, String supplier, long dateAdded, String addedBy, boolean isActive, long lastUpdated, String syncState, String imagePath, String imageUrl) {
         this.productName = productName;
         this.categoryId = categoryId;
         this.categoryName = categoryName;
@@ -50,5 +52,7 @@ public class ProductEntity {
         this.isActive = isActive;
         this.lastUpdated = lastUpdated;
         this.syncState = syncState;
+        this.imagePath = imagePath;
+        this.imageUrl = imageUrl;
     }
 }

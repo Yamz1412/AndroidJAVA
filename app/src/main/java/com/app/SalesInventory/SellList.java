@@ -1,23 +1,27 @@
 package com.app.SalesInventory;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.ListView;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import com.google.android.material.textfield.TextInputEditText;
+
 import java.util.ArrayList;
 import java.util.List;
 
-public class SellList extends BaseActivity  {
-    private ListView sellListView;
+public class SellList extends BaseActivity {
+    private RecyclerView sellListView;
     private SellAdapter sellAdapter;
     private List<Product> productList;
     private ProductRepository productRepository;
@@ -34,6 +38,7 @@ public class SellList extends BaseActivity  {
         btnCheckout = findViewById(R.id.btnCheckout);
         productList = new ArrayList<>();
         sellAdapter = new SellAdapter(this, productList);
+        sellListView.setLayoutManager(new GridLayoutManager(this, 3));
         sellListView.setAdapter(sellAdapter);
         loadProducts();
         setupListItemClick();
@@ -44,17 +49,31 @@ public class SellList extends BaseActivity  {
         productRepository.getAllProducts().observe(this, products -> {
             if (products != null) {
                 productList.clear();
-                productList.addAll(products);
-                sellAdapter.notifyDataSetChanged();
+                for (Product p : products) {
+                    if (p != null && p.isActive() && p.getQuantity() > 0) {
+                        productList.add(p);
+                    }
+                }
+                sellAdapter.updateProducts(productList);
             }
         });
     }
 
     private void setupListItemClick() {
-        sellListView.setOnItemClickListener((parent, view, position, id) -> {
-            Product selectedProduct = productList.get(position);
-            showProductOptionsDialog(selectedProduct);
-        });
+        sellListView.addOnItemTouchListener(new RecyclerItemClickListener(
+                this,
+                sellListView,
+                new RecyclerItemClickListener.OnItemClickListener() {
+                    @Override
+                    public void onItemClick(View view, int position) {
+                        if (position < 0 || position >= productList.size()) return;
+                        Product selectedProduct = productList.get(position);
+                        showProductOptionsDialog(selectedProduct);
+                    }
+
+                    @Override
+                    public void onLongItemClick(View view, int position) {}
+                }));
     }
 
     private void setupCheckoutButton() {

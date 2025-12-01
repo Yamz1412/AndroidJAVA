@@ -35,6 +35,14 @@
         </activity>
 
         <activity
+            android:name=".DeliveryReportActivity"
+            android:windowSoftInputMode="stateHidden|adjustResize" />
+
+        <activity
+            android:name=".ReceivingReportActivity"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
+
+        <activity
             android:name=".WaitingVerificationActivity"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 

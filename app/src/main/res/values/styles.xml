@@ -118,15 +118,18 @@
         <item name="cardBackgroundColor">?android:colorBackground</item>
     </style>
 
-    <!-- Quick Actions buttons: WHITE background, theme-primary text and icon -->
-    <style name="DashboardButton" parent="Widget.MaterialComponents.Button">
+    <!-- UPDATED: Quick Actions buttons -->
+    <style name="DashboardButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
         <item name="cornerRadius">16dp</item>
-        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:textAllCaps">false</item>
         <item name="android:textSize">11sp</item>
         <item name="android:padding">8dp</item>
         <item name="android:layout_margin">6dp</item>
-        <item name="backgroundTint">@android:color/white</item>
-        <item name="iconTint">?attr/colorPrimary</item>
+        <item name="android:backgroundTint">@android:color/white</item>
+        <item name="android:textColor">@android:color/black</item>
+        <item name="iconTint">@android:color/black</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@android:color/black</item>
     </style>
 
     <style name="CustomTextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
@@ -143,7 +146,6 @@
         <item name="cornerRadius">12dp</item>
     </style>
 
-    <!-- Manage Users: outlined, readable on all themes -->
     <style name="CustomButtonOutlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
         <item name="android:textColor">?attr/colorOnBackground</item>
         <item name="strokeColor">?attr/colorOnBackground</item>
@@ -166,4 +168,5 @@
         <item name="android:statusBarColor">@color/primary</item>
         <item name="android:navigationBarColor">@android:color/white</item>
     </style>
+
 </resources>

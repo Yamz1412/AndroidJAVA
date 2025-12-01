@@ -9,8 +9,9 @@ import android.view.Window;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.firestore.FirebaseFirestore;
+
 public class ThemeManager {
-    private static final String TAG = "ThemeManager";
     private static final String THEME_PREFS = "theme_prefs";
     private static final String SELECTED_THEME = "selected_theme";
     private static final String PRIMARY_COLOR = "primary_color";
@@ -79,6 +80,30 @@ public class ThemeManager {
         editor.putInt(SECONDARY_COLOR, chosen.secondaryColor);
         editor.putInt(ACCENT_COLOR, chosen.accentColor);
         editor.apply();
+        String uid = AuthManager.getInstance().getCurrentUserId();
+        if (uid != null) {
+            FirebaseFirestore.getInstance().collection("users").document(uid)
+                    .update("themeName", chosen.name,
+                            "primaryColor", chosen.primaryColor,
+                            "secondaryColor", chosen.secondaryColor,
+                            "accentColor", chosen.accentColor);
+        }
+    }
+
+    public void setCurrentThemeLocalOnly(String themeName) {
+        Theme chosen = Theme.LIGHT;
+        for (Theme t : Theme.values()) {
+            if (t.name.equals(themeName)) {
+                chosen = t;
+                break;
+            }
+        }
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString(SELECTED_THEME, chosen.name);
+        editor.putInt(PRIMARY_COLOR, chosen.primaryColor);
+        editor.putInt(SECONDARY_COLOR, chosen.secondaryColor);
+        editor.putInt(ACCENT_COLOR, chosen.accentColor);
+        editor.apply();
     }
 
     public void applyTheme(AppCompatActivity activity) {
@@ -117,6 +142,14 @@ public class ThemeManager {
         editor.putInt(SECONDARY_COLOR, secondaryColor);
         editor.putInt(ACCENT_COLOR, accentColor);
         editor.apply();
+        String uid = AuthManager.getInstance().getCurrentUserId();
+        if (uid != null) {
+            FirebaseFirestore.getInstance().collection("users").document(uid)
+                    .update("themeName", Theme.CUSTOM.name,
+                            "primaryColor", primaryColor,
+                            "secondaryColor", secondaryColor,
+                            "accentColor", accentColor);
+        }
     }
 
     public Theme[] getAvailableThemes() {

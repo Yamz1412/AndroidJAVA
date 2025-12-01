@@ -117,6 +117,49 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:text="📦 Receiving Report"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorPrimary"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="View purchase orders, received status, and total received amounts"
+                android:textSize="13sp"
+                android:textColor="@color/textColorSecondary"
+                android:layout_marginBottom="12dp" />
+
+            <Button
+                android:id="@+id/btnReceivingReport"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="View Report"
+                android:textColor="@color/white"
+                android:backgroundTint="@color/colorPrimary"
+                style="@style/CustomButton" />
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="8dp"
+        android:elevation="4dp"
+        android:background="@color/white">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:text="🔄 Adjustment Summary Report"
                 android:textSize="18sp"
                 android:textStyle="bold"
@@ -138,6 +181,49 @@
                 android:text="View Report"
                 android:textColor="@color/white"
                 android:backgroundTint="@color/successGreen"
+                style="@style/CustomButton" />
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="8dp"
+        android:elevation="4dp"
+        android:background="@color/white">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🚚 Delivery Report"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorPrimary"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="View delivery orders, customers, payment type, and delivery status"
+                android:textSize="13sp"
+                android:textColor="@color/textColorSecondary"
+                android:layout_marginBottom="12dp" />
+
+            <Button
+                android:id="@+id/btnDeliveryReport"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="View Report"
+                android:textColor="@color/white"
+                android:backgroundTint="@color/colorPrimary"
                 style="@style/CustomButton" />
 
         </LinearLayout>

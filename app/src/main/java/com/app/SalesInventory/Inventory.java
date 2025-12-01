@@ -1,19 +1,22 @@
 package com.app.SalesInventory;
 
 import android.content.Intent;
-import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.SearchView;
+import android.widget.Spinner;
 import android.widget.TextView;
-import androidx.appcompat.app.AppCompatActivity;
+
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import java.util.ArrayList;
-import java.util.List;
 
-public class Inventory extends BaseActivity  {
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+public class Inventory extends BaseActivity {
     private RecyclerView productsRecyclerView;
     private SearchView searchView;
     private TextView emptyStateTV;
@@ -26,6 +29,11 @@ public class Inventory extends BaseActivity  {
     private Button btnAdjustmentHistory;
     private Button btnAdjustmentSummary;
     private Button batchBtn;
+    private Spinner spinnerCategoryFilter;
+    private String currentSearchQuery = "";
+    private String currentCategoryFilter = "All";
+    private CriticalStockNotifier criticalNotifier;
+    private ProductRepository.OnCriticalStockListener criticalListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,9 +50,10 @@ public class Inventory extends BaseActivity  {
         btnAdjustStock = findViewById(R.id.btn_adjust_stock);
         btnAdjustmentHistory = findViewById(R.id.btn_adjustment_history);
         btnAdjustmentSummary = findViewById(R.id.btn_adjustment_summary);
+        spinnerCategoryFilter = findViewById(R.id.spinnerCategoryFilter);
 
         productAdapter = new ProductAdapter(filteredProducts, this);
-        productsRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
+        productsRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
         productsRecyclerView.setAdapter(productAdapter);
 
         if (batchBtn != null) {
@@ -70,22 +79,29 @@ public class Inventory extends BaseActivity  {
         productRepository.getAllProducts().observe(this, products -> {
             if (products != null) {
                 allProducts = new ArrayList<>(products);
-                filteredProducts = new ArrayList<>(products);
-                productAdapter.updateProducts(filteredProducts);
-                updateEmptyState();
+                setupCategoryFilterSpinner();
+                applyFilters();
             }
         });
+
+        criticalNotifier = CriticalStockNotifier.getInstance();
+        criticalListener = product -> runOnUiThread(() ->
+                criticalNotifier.showCriticalDialog(this, product)
+        );
+        productRepository.registerCriticalStockListener(criticalListener);
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-                filterProducts(query);
+                currentSearchQuery = query == null ? "" : query;
+                applyFilters();
                 return false;
             }
 
             @Override
             public boolean onQueryTextChange(String newText) {
-                filterProducts(newText);
+                currentSearchQuery = newText == null ? "" : newText;
+                applyFilters();
                 return false;
             }
         });
@@ -106,17 +122,60 @@ public class Inventory extends BaseActivity  {
         }
     }
 
-    private void filterProducts(String query) {
+    private void setupCategoryFilterSpinner() {
+        Set<String> categories = new HashSet<>();
+        for (Product p : allProducts) {
+            String c = p.getCategoryName();
+            if (c != null && !c.isEmpty()) {
+                categories.add(c);
+            }
+        }
+        List<String> options = new ArrayList<>();
+        options.add("All");
+        options.addAll(categories);
+
+        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_item,
+                options
+        );
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerCategoryFilter.setAdapter(adapter);
+
+        int index = options.indexOf(currentCategoryFilter);
+        if (index < 0) index = 0;
+        spinnerCategoryFilter.setSelection(index);
+
+        spinnerCategoryFilter.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                String selected = (String) parent.getItemAtPosition(position);
+                currentCategoryFilter = selected == null ? "All" : selected;
+                applyFilters();
+            }
+
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+    }
+
+    private void applyFilters() {
+        String q = currentSearchQuery == null ? "" : currentSearchQuery.toLowerCase();
+        String cat = currentCategoryFilter == null ? "All" : currentCategoryFilter;
+
         filteredProducts.clear();
-        if (query == null || query.isEmpty()) {
-            filteredProducts.addAll(allProducts);
-        } else {
-            String q = query.toLowerCase();
-            for (Product p : allProducts) {
-                if (p.getProductName().toLowerCase().contains(q)
-                        || (p.getCategoryName() != null && p.getCategoryName().toLowerCase().contains(q))) {
-                    filteredProducts.add(p);
-                }
+        for (Product p : allProducts) {
+            boolean matchesSearch =
+                    q.isEmpty()
+                            || p.getProductName().toLowerCase().contains(q)
+                            || (p.getCategoryName() != null && p.getCategoryName().toLowerCase().contains(q));
+
+            boolean matchesCategory =
+                    "All".equalsIgnoreCase(cat)
+                            || (p.getCategoryName() != null && p.getCategoryName().equalsIgnoreCase(cat));
+
+            if (matchesSearch && matchesCategory) {
+                filteredProducts.add(p);
             }
         }
         productAdapter.updateProducts(filteredProducts);
@@ -129,6 +188,14 @@ public class Inventory extends BaseActivity  {
             emptyStateTV.setVisibility(View.VISIBLE);
         } else {
             emptyStateTV.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (productRepository != null && criticalListener != null) {
+            productRepository.unregisterCriticalStockListener(criticalListener);
         }
     }
 }

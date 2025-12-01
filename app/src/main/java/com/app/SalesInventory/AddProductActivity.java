@@ -8,8 +8,6 @@ import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.text.ParseException;
@@ -19,7 +17,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-public class AddProductActivity extends BaseActivity  {
+public class AddProductActivity extends BaseActivity {
     private TextInputEditText productNameET;
     private TextInputEditText sellingPriceET;
     private TextInputEditText quantityET;
@@ -40,11 +38,12 @@ public class AddProductActivity extends BaseActivity  {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_product);
+
         authManager = AuthManager.getInstance();
-        if (!authManager.isCurrentUserApproved()) {
-            finish();
-            return;
-        }
+        String uid = authManager.getCurrentUserId();
+        boolean approved = authManager.isCurrentUserApproved();
+        android.util.Log.d("AddProductActivity", "uid=" + uid + " approved=" + approved);
+
         productRepository = SalesInventoryApplication.getProductRepository();
         productNameET = findViewById(R.id.productNameET);
         sellingPriceET = findViewById(R.id.sellingPriceET);
@@ -67,7 +66,7 @@ public class AddProductActivity extends BaseActivity  {
             }
 
             @Override
-            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+            public void onNothingSelected(android.widget.AdapterView<?> parent) { }
         });
 
         addBtn.setOnClickListener(v -> attemptAdd());
@@ -81,10 +80,16 @@ public class AddProductActivity extends BaseActivity  {
             public void onSuccess(List<Category> categories) {
                 runOnUiThread(() -> {
                     categoryList.clear();
-                    categoryList.addAll(categories);
+                    if (categories != null) {
+                        for (Category c : categories) {
+                            if (c.isActive()) {
+                                categoryList.add(c);
+                            }
+                        }
+                    }
                     List<String> names = new ArrayList<>();
                     for (Category c : categoryList) {
-                        names.add(c.getName());
+                        names.add(c.getCategoryName());
                     }
                     ArrayAdapter<String> adapter = new ArrayAdapter<>(AddProductActivity.this, android.R.layout.simple_spinner_item, names);
                     adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -129,19 +134,21 @@ public class AddProductActivity extends BaseActivity  {
             return;
         }
         Category selectedCategory = categoryList.get(catIndex);
-        String categoryName = selectedCategory.getName();
-        String categoryId = selectedCategory.getId();
-        String productType = selectedCategory.getType();
+        String categoryName = selectedCategory.getCategoryName();
+        String categoryId = selectedCategory.getCategoryId();
+        String categoryType = selectedCategory.getType();
+        String productType = "Menu".equalsIgnoreCase(categoryType) ? "Menu" : "Raw";
 
         double sellingPrice = 0;
         double costPrice = 0;
         int qty = 0;
         int criticalLevel = 0;
+        int reorderLevel = 0;
         long expiryDate = 0L;
 
         try {
             sellingPrice = Double.parseDouble(sellingPriceET.getText() != null ? sellingPriceET.getText().toString() : "0");
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) { }
 
         if (sellingPrice <= 0) {
             Toast.makeText(this, "Selling price is required", Toast.LENGTH_SHORT).show();
@@ -153,24 +160,31 @@ public class AddProductActivity extends BaseActivity  {
             try {
                 Date d = expiryFormat.parse(expiryStr);
                 if (d != null) expiryDate = d.getTime();
-            } catch (ParseException ignored) {}
+            } catch (ParseException ignored) { }
         }
 
-        if ("Raw".equalsIgnoreCase(productType)) {
-            try {
-                costPrice = Double.parseDouble(costPriceET.getText() != null ? costPriceET.getText().toString() : "0");
-            } catch (Exception ignored) {}
-            try {
-                qty = Integer.parseInt(quantityET.getText() != null ? quantityET.getText().toString() : "0");
-            } catch (Exception ignored) {}
-            try {
-                criticalLevel = Integer.parseInt(minStockET.getText() != null ? minStockET.getText().toString() : "0");
-            } catch (Exception ignored) {}
-            if (qty < 0) qty = 0;
-        } else {
+        if ("Menu".equalsIgnoreCase(productType)) {
             costPrice = 0;
             qty = 0;
             criticalLevel = 0;
+            reorderLevel = 0;
+        } else {
+            try {
+                costPrice = Double.parseDouble(costPriceET.getText() != null ? costPriceET.getText().toString() : "0");
+            } catch (Exception ignored) { }
+            try {
+                qty = Integer.parseInt(quantityET.getText() != null ? quantityET.getText().toString() : "0");
+            } catch (Exception ignored) { }
+            try {
+                criticalLevel = Integer.parseInt(minStockET.getText() != null ? minStockET.getText().toString() : "0");
+            } catch (Exception ignored) { }
+            if (qty < 0) qty = 0;
+            if (criticalLevel < 0) criticalLevel = 0;
+            if (criticalLevel > 0) {
+                reorderLevel = criticalLevel;
+            } else {
+                reorderLevel = 0;
+            }
         }
 
         Product p = new Product();
@@ -182,10 +196,10 @@ public class AddProductActivity extends BaseActivity  {
         p.setCostPrice(costPrice);
         p.setQuantity(qty);
         p.setCriticalLevel(criticalLevel);
+        p.setReorderLevel(reorderLevel);
+        p.setCeilingLevel(0);
         p.setUnit(unitET.getText() != null ? unitET.getText().toString().trim() : "");
         p.setExpiryDate(expiryDate);
-        p.setReorderLevel(0);
-        p.setCeilingLevel(0);
         p.setSupplier("");
         p.setDescription("");
         long now = System.currentTimeMillis();

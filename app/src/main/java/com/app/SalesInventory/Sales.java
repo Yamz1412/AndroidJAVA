@@ -2,15 +2,22 @@ package com.app.SalesInventory;
 
 public class Sales {
     private String id;
+    private String orderId;
     private String productId;
     private String productName;
     private int quantity;
     private double price;
     private double totalPrice;
     private String paymentMethod;
-    private String paymentReference;
     private long date;
     private long timestamp;
+    private String deliveryType;
+    private String deliveryStatus;
+    private long deliveryDate;
+    private String deliveryName;
+    private String deliveryPhone;
+    private String deliveryAddress;
+    private String deliveryPaymentMethod;
 
     public Sales() {
     }
@@ -21,6 +28,14 @@ public class Sales {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
     }
 
     public String getProductId() {
@@ -71,14 +86,6 @@ public class Sales {
         this.paymentMethod = paymentMethod;
     }
 
-    public String getPaymentReference() {
-        return paymentReference;
-    }
-
-    public void setPaymentReference(String paymentReference) {
-        this.paymentReference = paymentReference;
-    }
-
     public long getDate() {
         return date;
     }
@@ -93,5 +100,61 @@ public class Sales {
 
     public void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public String getDeliveryType() {
+        return deliveryType;
+    }
+
+    public void setDeliveryType(String deliveryType) {
+        this.deliveryType = deliveryType;
+    }
+
+    public String getDeliveryStatus() {
+        return deliveryStatus;
+    }
+
+    public void setDeliveryStatus(String deliveryStatus) {
+        this.deliveryStatus = deliveryStatus;
+    }
+
+    public long getDeliveryDate() {
+        return deliveryDate;
+    }
+
+    public void setDeliveryDate(long deliveryDate) {
+        this.deliveryDate = deliveryDate;
+    }
+
+    public String getDeliveryName() {
+        return deliveryName;
+    }
+
+    public void setDeliveryName(String deliveryName) {
+        this.deliveryName = deliveryName;
+    }
+
+    public String getDeliveryPhone() {
+        return deliveryPhone;
+    }
+
+    public void setDeliveryPhone(String deliveryPhone) {
+        this.deliveryPhone = deliveryPhone;
+    }
+
+    public String getDeliveryAddress() {
+        return deliveryAddress;
+    }
+
+    public void setDeliveryAddress(String deliveryAddress) {
+        this.deliveryAddress = deliveryAddress;
+    }
+
+    public String getDeliveryPaymentMethod() {
+        return deliveryPaymentMethod;
+    }
+
+    public void setDeliveryPaymentMethod(String deliveryPaymentMethod) {
+        this.deliveryPaymentMethod = deliveryPaymentMethod;
     }
 }

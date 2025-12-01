@@ -19,8 +19,6 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import java.util.HashMap;
-import java.util.Map;
 
 public class SignInActivity extends BaseActivity  {
 
@@ -58,7 +56,7 @@ public class SignInActivity extends BaseActivity  {
                     FirebaseUser reloaded = fAuth.getCurrentUser();
                     if (reloaded != null && reloaded.isEmailVerified()) {
                         String uid = reloaded.getUid();
-                        fStore.collection("users").document(uid).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                        AuthManager.getInstance().getFirestore().collection("users").document(uid).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
                             @Override
                             public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                                 progressBar.setVisibility(View.INVISIBLE);
@@ -68,6 +66,7 @@ public class SignInActivity extends BaseActivity  {
                                     if (approved == null) approved = false;
                                     if (approved) {
                                         applyRemoteTheme(doc);
+                                        FirestoreManager.getInstance().updateCurrentUserId(uid);
                                         Intent intent = new Intent(getApplicationContext(), MainActivity.class);
                                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                                         startActivity(intent);
@@ -95,7 +94,7 @@ public class SignInActivity extends BaseActivity  {
         Long accent = doc.getLong("accentColor");
         ThemeManager tm = ThemeManager.getInstance(this);
         if (themeName != null && !themeName.isEmpty()) {
-            tm.setCurrentTheme(themeName);
+            tm.setCurrentThemeLocalOnly(themeName);
         }
         if (primary != null && secondary != null && accent != null) {
             tm.setCustomColors(primary.intValue(), secondary.intValue(), accent.intValue());
@@ -131,7 +130,7 @@ public class SignInActivity extends BaseActivity  {
                                 FirebaseUser reloaded = fAuth.getCurrentUser();
                                 if (reloaded != null && reloaded.isEmailVerified()) {
                                     String uid = reloaded.getUid();
-                                    fStore.collection("users").document(uid).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                                    AuthManager.getInstance().getFirestore().collection("users").document(uid).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
                                         @Override
                                         public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                                             if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
@@ -145,6 +144,7 @@ public class SignInActivity extends BaseActivity  {
                                                         prefs.edit().putBoolean(KEY_REMEMBER, false).apply();
                                                     }
                                                     applyRemoteTheme(doc);
+                                                    FirestoreManager.getInstance().updateCurrentUserId(uid);
                                                     Intent intent = new Intent(getApplicationContext(), MainActivity.class);
                                                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                                                     startActivity(intent);

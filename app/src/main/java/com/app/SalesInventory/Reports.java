@@ -1,10 +1,10 @@
 package com.app.SalesInventory;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -12,30 +12,34 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
-import android.view.View;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+
+import java.util.Locale;
+import java.util.Map;
 
 public class Reports extends BaseActivity  {
 
     private static final int REQUEST_WRITE_STORAGE = 1001;
 
     private TextView totalProductsTV, lowStockTV, totalRevenueTV, totalSalesTV;
-    private Button btnSalesReport, btnInventoryReport, btnComprehensiveReports;
+    private Button btnSalesReport, btnInventoryReport, btnComprehensiveReports, btnSampleData, btnOverallPdf;
     private ListView reportsListView;
 
     private ProductRepository productRepository;
     private SalesRepository salesRepository;
+    private AuthManager authManager;
 
     private List<Product> productList = new ArrayList<>();
     private List<Sales> salesList = new ArrayList<>();
@@ -48,6 +52,7 @@ public class Reports extends BaseActivity  {
         setContentView(R.layout.activity_reports);
         productRepository = SalesInventoryApplication.getProductRepository();
         salesRepository = SalesInventoryApplication.getSalesRepository();
+        authManager = AuthManager.getInstance();
         initializeUI();
         setupListeners();
         loadData();
@@ -61,6 +66,8 @@ public class Reports extends BaseActivity  {
         btnSalesReport = findViewById(R.id.BtnSalesReport);
         btnInventoryReport = findViewById(R.id.BtnInventoryReport);
         btnComprehensiveReports = findViewById(R.id.BtnComprehensiveReports);
+        btnSampleData = findViewById(R.id.BtnSampleData);
+        btnOverallPdf = findViewById(R.id.BtnOverallPdf);
         reportsListView = findViewById(R.id.ReportsListView);
         reportItems = new ArrayList<>();
         adapter = new ReportAdapter(this, reportItems);
@@ -73,6 +80,12 @@ public class Reports extends BaseActivity  {
         btnComprehensiveReports.setOnClickListener(v -> {
             if (ensureWritePermission()) {
                 exportComprehensiveReports();
+            }
+        });
+        btnSampleData.setOnClickListener(v -> loadSampleData());
+        btnOverallPdf.setOnClickListener(v -> {
+            if (ensureWritePermission()) {
+                exportOverallSummaryPdf();
             }
         });
     }
@@ -98,7 +111,7 @@ public class Reports extends BaseActivity  {
         int total = productList.size();
         int lowStock = 0;
         for (Product p : productList) {
-            if (p.isLowStock()) lowStock++;
+            if (p.isLowStock() || p.isCriticalStock()) lowStock++;
         }
         totalProductsTV.setText(String.valueOf(total));
         lowStockTV.setText(String.valueOf(lowStock));
@@ -115,11 +128,34 @@ public class Reports extends BaseActivity  {
 
     private void showSalesReport() {
         reportItems.clear();
-        if (salesList != null) {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        if (salesList != null && !salesList.isEmpty()) {
+            SimpleDateFormat dayFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+            Map<String, DailySummary> dailyMap = new HashMap<>();
             for (Sales s : salesList) {
-                String dateStr = sdf.format(new Date(s.getDate()));
-                reportItems.add(new ReportItem(s.getProductName(), dateStr, "x " + s.getQuantity(), String.format(Locale.getDefault(), "₱%.2f", s.getTotalPrice())));
+                long ts = s.getDate() > 0 ? s.getDate() : s.getTimestamp();
+                String dayKey = dayFormat.format(new Date(ts));
+                DailySummary ds = dailyMap.get(dayKey);
+                if (ds == null) {
+                    ds = new DailySummary(dayKey);
+                    dailyMap.put(dayKey, ds);
+                }
+                ds.transactionCount++;
+                ds.netSales += s.getTotalPrice();
+                if ("DELIVERY".equals(s.getDeliveryType())) {
+                    ds.deliveryCount++;
+                    ds.deliverySales += s.getTotalPrice();
+                }
+            }
+            List<String> keys = new ArrayList<>(dailyMap.keySet());
+            java.util.Collections.sort(keys);
+            for (String day : keys) {
+                DailySummary ds = dailyMap.get(day);
+                if (ds == null) continue;
+                String name = "Sales Journal";
+                String dateStr = day;
+                String qtyStr = "Txns: " + ds.transactionCount + " | Deliveries: " + ds.deliveryCount;
+                String amountStr = String.format(Locale.getDefault(), "₱%.2f", ds.netSales);
+                reportItems.add(new ReportItem(name, dateStr, qtyStr, amountStr));
             }
         }
         adapter.notifyDataSetChanged();
@@ -161,6 +197,68 @@ public class Reports extends BaseActivity  {
         } catch (Exception e) {
             new ReportExportUtil(this).showExportError("Sales export failed: " + e.getMessage());
         }
+        try {
+            String csvNameJournal = exportUtil.generateFileName("SalesJournal_Report", ReportExportUtil.EXPORT_CSV);
+            File journalFile = new File(exportDir, csvNameJournal);
+            writeSalesJournalCsv(journalFile);
+            shareFile(journalFile, "text/csv");
+        } catch (Exception e) {
+            new ReportExportUtil(this).showExportError("Sales journal export failed: " + e.getMessage());
+        }
+    }
+
+    private void exportOverallSummaryPdf() {
+        try {
+            ReportExportUtil exportUtil = new ReportExportUtil(this);
+            File exportDir = exportUtil.getExportDirectory();
+            if (exportDir == null) {
+                exportUtil.showExportError("Unable to access export directory");
+                return;
+            }
+            String pdfName = exportUtil.generateFileName("OverallReports", ReportExportUtil.EXPORT_PDF);
+            File pdfFile = new File(exportDir, pdfName);
+
+            int totalProducts = productList != null ? productList.size() : 0;
+            int lowOrCritical = 0;
+            double inventoryValue = 0;
+            if (productList != null) {
+                for (Product p : productList) {
+                    if (p.isLowStock() || p.isCriticalStock()) lowOrCritical++;
+                    inventoryValue += p.getQuantity() * p.getSellingPrice();
+                }
+            }
+
+            int totalTransactions = 0;
+            int deliveryCount = 0;
+            double totalSalesAmount = 0;
+            double deliverySalesAmount = 0;
+            if (salesList != null) {
+                for (Sales s : salesList) {
+                    totalTransactions++;
+                    totalSalesAmount += s.getTotalPrice();
+                    if ("DELIVERY".equals(s.getDeliveryType())) {
+                        deliveryCount++;
+                        deliverySalesAmount += s.getTotalPrice();
+                    }
+                }
+            }
+
+            PDFGenerator generator = new PDFGenerator(this);
+            generator.generateOverallSummaryReportPDF(
+                    pdfFile,
+                    totalProducts,
+                    lowOrCritical,
+                    inventoryValue,
+                    totalTransactions,
+                    totalSalesAmount,
+                    deliveryCount,
+                    deliverySalesAmount
+            );
+
+            shareFile(pdfFile, "application/pdf");
+        } catch (Exception e) {
+            new ReportExportUtil(this).showExportError("Overall PDF export failed: " + e.getMessage());
+        }
     }
 
     private void writeInventoryCsv(File file) throws IOException {
@@ -188,7 +286,7 @@ public class Reports extends BaseActivity  {
         FileWriter writer = null;
         try {
             writer = new FileWriter(file);
-            writer.append("Date,Product Name,Quantity,Total Price\n");
+            writer.append("Date,Product Name,Quantity,Total Price,Order Type,Delivery Name,Delivery Phone,Delivery Address,Delivery Payment\n");
             if (salesList != null) {
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
                 for (Sales s : salesList) {
@@ -196,7 +294,51 @@ public class Reports extends BaseActivity  {
                     String name = sanitizeForCsv(s.getProductName());
                     int qty = s.getQuantity();
                     double total = s.getTotalPrice();
-                    writer.append(String.format(Locale.getDefault(), "\"%s\",\"%s\",%d,%.2f\n", dateStr, name, qty, total));
+                    String orderType = s.getDeliveryType() == null ? "" : s.getDeliveryType();
+                    String dName = sanitizeForCsv(s.getDeliveryName());
+                    String dPhone = sanitizeForCsv(s.getDeliveryPhone());
+                    String dAddress = sanitizeForCsv(s.getDeliveryAddress());
+                    String dPayment = sanitizeForCsv(s.getDeliveryPaymentMethod());
+                    writer.append(String.format(Locale.getDefault(), "\"%s\",\"%s\",%d,%.2f,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
+                            dateStr, name, qty, total, orderType, dName, dPhone, dAddress, dPayment));
+                }
+            }
+            writer.flush();
+        } finally {
+            if (writer != null) writer.close();
+        }
+    }
+
+    private void writeSalesJournalCsv(File file) throws IOException {
+        FileWriter writer = null;
+        try {
+            writer = new FileWriter(file);
+            writer.append("Date,Transaction Count,Net Sales,Delivery Count,Delivery Net Sales\n");
+            if (salesList != null && !salesList.isEmpty()) {
+                SimpleDateFormat dayFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                Map<String, DailySummary> dailyMap = new HashMap<>();
+                for (Sales s : salesList) {
+                    long ts = s.getDate() > 0 ? s.getDate() : s.getTimestamp();
+                    String dayKey = dayFormat.format(new Date(ts));
+                    DailySummary ds = dailyMap.get(dayKey);
+                    if (ds == null) {
+                        ds = new DailySummary(dayKey);
+                        dailyMap.put(dayKey, ds);
+                    }
+                    ds.transactionCount++;
+                    ds.netSales += s.getTotalPrice();
+                    if ("DELIVERY".equals(s.getDeliveryType())) {
+                        ds.deliveryCount++;
+                        ds.deliverySales += s.getTotalPrice();
+                    }
+                }
+                List<String> keys = new ArrayList<>(dailyMap.keySet());
+                java.util.Collections.sort(keys);
+                for (String day : keys) {
+                    DailySummary ds = dailyMap.get(day);
+                    if (ds == null) continue;
+                    writer.append(String.format(Locale.getDefault(), "\"%s\",%d,%.2f,%d,%.2f\n",
+                            day, ds.transactionCount, ds.netSales, ds.deliveryCount, ds.deliverySales));
                 }
             }
             writer.flush();
@@ -243,6 +385,115 @@ public class Reports extends BaseActivity  {
         }
     }
 
+    private void loadSampleData() {
+        authManager.isCurrentUserAdminAsync(success -> runOnUiThread(() -> {
+            if (!success) {
+                Toast.makeText(Reports.this, "Admin access required to load sample data", Toast.LENGTH_LONG).show();
+                return;
+            }
+            insertSampleData();
+        }));
+    }
+
+    private void insertSampleData() {
+        long now = System.currentTimeMillis();
+        long oneDay = 24L * 60L * 60L * 1000L;
+
+        com.google.firebase.database.DatabaseReference productRef = com.google.firebase.database.FirebaseDatabase.getInstance().getReference("Product");
+        com.google.firebase.database.DatabaseReference salesRef = com.google.firebase.database.FirebaseDatabase.getInstance().getReference("Sales");
+
+        Product coffee = new Product();
+        coffee.setProductId("P_SAMPLE_1");
+        coffee.setProductName("Sample Coffee");
+        coffee.setCategoryName("Beverages");
+        coffee.setQuantity(50);
+        coffee.setSellingPrice(50);
+        coffee.setCostPrice(10);
+        coffee.setReorderLevel(5);
+        coffee.setCeilingLevel(200);
+        coffee.setCriticalLevel(5);
+        coffee.setDateAdded(now);
+        coffee.setActive(true);
+        productRef.child(coffee.getProductId()).setValue(coffee);
+
+        Product tea = new Product();
+        tea.setProductId("P_SAMPLE_2");
+        tea.setProductName("Sample Tea");
+        tea.setCategoryName("Beverages");
+        tea.setQuantity(30);
+        tea.setSellingPrice(30);
+        tea.setCostPrice(8);
+        tea.setReorderLevel(4);
+        tea.setCeilingLevel(100);
+        tea.setCriticalLevel(4);
+        tea.setDateAdded(now);
+        tea.setActive(true);
+        productRef.child(tea.getProductId()).setValue(tea);
+
+        Product bread = new Product();
+        bread.setProductId("P_SAMPLE_3");
+        bread.setProductName("Sample Bread");
+        bread.setCategoryName("Bakery");
+        bread.setQuantity(20);
+        bread.setSellingPrice(20);
+        bread.setCostPrice(7);
+        bread.setReorderLevel(3);
+        bread.setCeilingLevel(60);
+        bread.setCriticalLevel(3);
+        bread.setDateAdded(now);
+        bread.setActive(true);
+        productRef.child(bread.getProductId()).setValue(bread);
+
+        List<Sales> sampleSales = new ArrayList<>();
+        sampleSales.add(buildSampleSale("P_SAMPLE_1", "Sample Coffee", 2, 50, now - oneDay * 2, false));
+        sampleSales.add(buildSampleSale("P_SAMPLE_2", "Sample Tea", 3, 30, now - oneDay * 2, true));
+        sampleSales.add(buildSampleSale("P_SAMPLE_1", "Sample Coffee", 1, 50, now - oneDay, true));
+        sampleSales.add(buildSampleSale("P_SAMPLE_3", "Sample Bread", 4, 20, now - oneDay, false));
+        sampleSales.add(buildSampleSale("P_SAMPLE_2", "Sample Tea", 2, 30, now, true));
+
+        for (Sales s : sampleSales) {
+            String key = salesRef.push().getKey();
+            if (key != null) {
+                s.setId(key);
+                salesRef.child(key).setValue(s);
+            }
+        }
+
+        Toast.makeText(this, "Sample data loaded", Toast.LENGTH_SHORT).show();
+    }
+
+    private Sales buildSampleSale(String productId, String productName, int qty, double price, long ts, boolean delivery) {
+        Sales s = new Sales();
+        String orderId = "SAMPLE_" + ts + "_" + productId;
+        s.setOrderId(orderId);
+        s.setProductId(productId);
+        s.setProductName(productName);
+        s.setQuantity(qty);
+        s.setPrice(price);
+        s.setTotalPrice(price * qty);
+        s.setPaymentMethod("Cash");
+        s.setDate(ts);
+        s.setTimestamp(ts);
+        if (delivery) {
+            s.setDeliveryType("DELIVERY");
+            s.setDeliveryStatus("PENDING");
+            s.setDeliveryDate(0);
+            s.setDeliveryName("Sample Customer");
+            s.setDeliveryPhone("09123456789");
+            s.setDeliveryAddress("Sample Address");
+            s.setDeliveryPaymentMethod("COD");
+        } else {
+            s.setDeliveryType("WALK_IN");
+            s.setDeliveryStatus("DELIVERED");
+            s.setDeliveryDate(ts);
+            s.setDeliveryName("");
+            s.setDeliveryPhone("");
+            s.setDeliveryAddress("");
+            s.setDeliveryPaymentMethod("");
+        }
+        return s;
+    }
+
     private static class ReportItem {
         String name;
         String date;
@@ -253,6 +504,21 @@ public class Reports extends BaseActivity  {
             this.date = date;
             this.quantity = quantity;
             this.amount = amount;
+        }
+    }
+
+    private static class DailySummary {
+        String dateKey;
+        int transactionCount;
+        double netSales;
+        int deliveryCount;
+        double deliverySales;
+        DailySummary(String dateKey) {
+            this.dateKey = dateKey;
+            this.transactionCount = 0;
+            this.netSales = 0;
+            this.deliveryCount = 0;
+            this.deliverySales = 0;
         }
     }
 

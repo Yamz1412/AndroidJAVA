@@ -2,10 +2,12 @@ package com.app.SalesInventory;
 
 import android.app.Application;
 import android.util.Log;
+
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+
 import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.QuerySnapshot;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -219,6 +221,7 @@ public class AlertRepository {
         map.put("type", alert.getType());
         map.put("message", alert.getMessage());
         map.put("read", alert.isRead());
+        map.put("timestamp", alert.getTimestamp());
         return map;
     }
 

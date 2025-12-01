@@ -13,7 +13,9 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
+
 import androidx.annotation.NonNull;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,6 +32,10 @@ public class AuthManager {
 
     public interface SimpleCallback {
         void onComplete(boolean success);
+    }
+
+    public interface RoleCallback {
+        void onComplete(String role);
     }
 
     private AuthManager() {
@@ -179,6 +185,37 @@ public class AuthManager {
                         });
                     }
                 });
+            }
+        });
+    }
+
+    public void getCurrentUserRoleAsync(@NonNull final RoleCallback callback) {
+        FirebaseUser u = auth.getCurrentUser();
+        if (u == null) {
+            callback.onComplete("Unknown");
+            return;
+        }
+        final String uid = u.getUid();
+        fStore.collection("users").document(uid).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (!task.isSuccessful() || task.getResult() == null || !task.getResult().exists()) {
+                    callback.onComplete("Unknown");
+                    return;
+                }
+                DocumentSnapshot doc = task.getResult();
+                Boolean approved = doc.getBoolean("approved");
+                if (approved == null || !approved) {
+                    callback.onComplete("Unknown");
+                    return;
+                }
+                String role = doc.getString("role");
+                if (role == null) role = doc.getString("Role");
+                if (role == null) {
+                    callback.onComplete("Staff");
+                } else {
+                    callback.onComplete(role.trim());
+                }
             }
         });
     }

@@ -1,24 +1,25 @@
 package com.app.SalesInventory;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
+
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-public class PurchaseOrderDetailActivity extends BaseActivity  {
+public class PurchaseOrderDetailActivity extends BaseActivity {
 
     private TextView tvPONumber, tvSupplier, tvStatus, tvDate, tvTotal;
     private Button btnMarkReceived, btnCancelOrder;
@@ -77,11 +78,11 @@ public class PurchaseOrderDetailActivity extends BaseActivity  {
 
     private void updateButtonState(String status) {
         if ("Received".equals(status) || "Cancelled".equals(status)) {
-            btnMarkReceived.setVisibility(View.GONE);
-            btnCancelOrder.setVisibility(View.GONE);
+            btnMarkReceived.setVisibility(Button.GONE);
+            btnCancelOrder.setVisibility(Button.GONE);
         } else {
-            btnMarkReceived.setVisibility(View.VISIBLE);
-            btnCancelOrder.setVisibility(View.VISIBLE);
+            btnMarkReceived.setVisibility(Button.VISIBLE);
+            btnCancelOrder.setVisibility(Button.VISIBLE);
         }
     }
 
@@ -109,11 +110,13 @@ public class PurchaseOrderDetailActivity extends BaseActivity  {
                             @Override
                             public void onProductUpdated() {
                             }
+
                             @Override
                             public void onError(String error) {
                             }
                         });
                     }
+
                     @Override
                     public void onError(String error) {
                     }

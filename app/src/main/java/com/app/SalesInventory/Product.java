@@ -21,6 +21,8 @@ public class Product {
     private boolean isActive;
     private String productType;
     private long expiryDate;
+    private String imagePath;
+    private String imageUrl;
 
     public Product() {
         this.productType = "Raw";
@@ -208,6 +210,22 @@ public class Product {
 
     public void setExpiryDate(long expiryDate) {
         this.expiryDate = expiryDate;
+    }
+
+    public String getImagePath() {
+        return imagePath;
+    }
+
+    public void setImagePath(String imagePath) {
+        this.imagePath = imagePath;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public boolean isCriticalStock() {

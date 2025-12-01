@@ -2,7 +2,6 @@ package com.app.SalesInventory;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -29,7 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class BatchStockOperationActivity extends AppCompatActivity {
+public class BatchStockOperationActivity extends BaseActivity {
 
     private Spinner spinnerOperationType;
     private EditText etOperationName, etQuantity, etRemarks;
@@ -44,11 +43,21 @@ public class BatchStockOperationActivity extends AppCompatActivity {
     private List<Product> selectedProducts;
     private BatchOperationAdapter adapter;
     private FirebaseAuth fAuth;
+    private ProductRepository productRepository;
+    private AuthManager authManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_batch_operations);
+
+        authManager = AuthManager.getInstance();
+        authManager.isCurrentUserAdminAsync(success -> runOnUiThread(() -> {
+            if (!success) {
+                Toast.makeText(BatchStockOperationActivity.this, "Admin access required", Toast.LENGTH_LONG).show();
+                finish();
+            }
+        }));
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setTitle("Batch Stock Operations");
@@ -84,6 +93,7 @@ public class BatchStockOperationActivity extends AppCompatActivity {
         productRef = FirebaseDatabase.getInstance().getReference("Product");
         batchOpRef = FirebaseDatabase.getInstance().getReference("BatchOperations");
         fAuth = FirebaseAuth.getInstance();
+        productRepository = SalesInventoryApplication.getProductRepository();
     }
 
     private void setupRecyclerView() {
@@ -141,7 +151,6 @@ public class BatchStockOperationActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Select Products");
 
-        // Create a list of product names with checkboxes
         String[] productNames = new String[allProducts.size()];
         boolean[] checkedItems = new boolean[allProducts.size()];
 
@@ -182,7 +191,6 @@ public class BatchStockOperationActivity extends AppCompatActivity {
     }
 
     private void performBatchOperation() {
-        // Validation
         String operationName = etOperationName.getText().toString().trim();
         if (operationName.isEmpty()) {
             etOperationName.setError("Operation name required");
@@ -207,10 +215,9 @@ public class BatchStockOperationActivity extends AppCompatActivity {
         }
 
         String operationType = spinnerOperationType.getSelectedItem().toString();
-        String reason = "Batch Operation"; // Can be customized later
+        String reason = "Batch Operation";
         String remarks = etRemarks.getText().toString().trim();
 
-        // Show confirmation dialog
         String operationTypeCode = operationType.contains("Add") ? "ADD" :
                 operationType.contains("Subtract") ? "SUBTRACT" : "SET";
 
@@ -241,7 +248,6 @@ public class BatchStockOperationActivity extends AppCompatActivity {
         Map<String, Object> updates = new HashMap<>();
         updates.put("/BatchOperations/" + batchOpId, batchOp);
 
-        // Update each product
         for (Product product : selectedProducts) {
             int newQuantity;
             int oldQuantity = product.getQuantity();
@@ -260,10 +266,8 @@ public class BatchStockOperationActivity extends AppCompatActivity {
                     newQuantity = oldQuantity;
             }
 
-            updates.put("/Product/" + product.getProductId() + "/quantity", newQuantity);
             batchOp.addProductChange(product.getProductId(), newQuantity);
 
-            // Also create stock adjustment records
             String adjustmentId = FirebaseDatabase.getInstance().getReference("StockAdjustments").push().getKey();
             if (adjustmentId != null) {
                 StockAdjustment adjustment = new StockAdjustment(
@@ -286,6 +290,33 @@ public class BatchStockOperationActivity extends AppCompatActivity {
 
         FirebaseDatabase.getInstance().getReference().updateChildren(updates)
                 .addOnSuccessListener(aVoid -> {
+                    for (Product product : selectedProducts) {
+                        int oldQuantity = product.getQuantity();
+                        int newQuantity;
+                        switch (operationType) {
+                            case "ADD":
+                                newQuantity = oldQuantity + quantity;
+                                break;
+                            case "SUBTRACT":
+                                newQuantity = Math.max(0, oldQuantity - quantity);
+                                break;
+                            case "SET":
+                                newQuantity = quantity;
+                                break;
+                            default:
+                                newQuantity = oldQuantity;
+                        }
+                        int finalNewQuantity = newQuantity;
+                        productRepository.updateProductQuantity(product.getProductId(), finalNewQuantity, new ProductRepository.OnProductUpdatedListener() {
+                            @Override
+                            public void onProductUpdated() {
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                            }
+                        });
+                    }
                     progressBar.setVisibility(View.GONE);
                     Toast.makeText(BatchStockOperationActivity.this,
                             "Batch operation completed successfully!", Toast.LENGTH_SHORT).show();

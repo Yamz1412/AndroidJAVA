@@ -2,7 +2,6 @@ package com.app.SalesInventory;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
 import android.view.View;
@@ -26,7 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class StockAdjustmentActivity extends BaseActivity  {
+public class StockAdjustmentActivity extends BaseActivity {
 
     private Spinner spinnerProduct, spinnerAdjustmentType, spinnerReason;
     private EditText etQuantity, etRemarks;
@@ -36,13 +35,13 @@ public class StockAdjustmentActivity extends BaseActivity  {
     private DatabaseReference productRef, adjustmentRef;
     private List<Product> productList;
     private Product selectedProduct;
+    private ProductRepository productRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_stock_adjustment);
 
-        // Initialize views
         spinnerProduct = findViewById(R.id.spinnerProduct);
         spinnerAdjustmentType = findViewById(R.id.spinnerAdjustmentType);
         spinnerReason = findViewById(R.id.spinnerReason);
@@ -53,14 +52,13 @@ public class StockAdjustmentActivity extends BaseActivity  {
         btnAdjust = findViewById(R.id.btnAdjust);
         btnViewHistory = findViewById(R.id.btnViewHistory);
 
-        // Initialize Firebase references
         productRef = FirebaseDatabase.getInstance().getReference("Product");
         adjustmentRef = FirebaseDatabase.getInstance().getReference("StockAdjustments");
+        productRepository = SalesInventoryApplication.getProductRepository();
 
         setupSpinners();
         loadProducts();
 
-        // Product selection listener
         spinnerProduct.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
@@ -76,7 +74,6 @@ public class StockAdjustmentActivity extends BaseActivity  {
             }
         });
 
-        // Quantity change listener
         etQuantity.addTextChangedListener(new android.text.TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -92,7 +89,6 @@ public class StockAdjustmentActivity extends BaseActivity  {
             }
         });
 
-        // Adjustment type listener
         spinnerAdjustmentType.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
@@ -104,7 +100,6 @@ public class StockAdjustmentActivity extends BaseActivity  {
             }
         });
 
-        // Button listeners
         btnAdjust.setOnClickListener(v -> performAdjustment());
         btnViewHistory.setOnClickListener(v -> {
             startActivity(new android.content.Intent(this, AdjustmentHistoryActivity.class));
@@ -112,13 +107,11 @@ public class StockAdjustmentActivity extends BaseActivity  {
     }
 
     private void setupSpinners() {
-        // Adjustment Types
         String[] adjustmentTypes = {"Add Stock", "Remove Stock"};
         ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, adjustmentTypes);
         typeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerAdjustmentType.setAdapter(typeAdapter);
 
-        // Reasons
         String[] reasons = {
                 "Purchase/Receiving",
                 "Sales Return",
@@ -254,6 +247,8 @@ public class StockAdjustmentActivity extends BaseActivity  {
             return;
         }
 
+        int finalNewStock = Math.max(0, newStock);
+
         StockAdjustment adjustment = new StockAdjustment(
                 adjustmentId,
                 selectedProduct.getProductId(),
@@ -261,7 +256,7 @@ public class StockAdjustmentActivity extends BaseActivity  {
                 adjustmentType,
                 currentStock,
                 adjustmentQty,
-                Math.max(0, newStock),
+                finalNewStock,
                 reason,
                 remarks,
                 System.currentTimeMillis(),
@@ -270,12 +265,23 @@ public class StockAdjustmentActivity extends BaseActivity  {
 
         Map<String, Object> updates = new HashMap<>();
         updates.put("/StockAdjustments/" + adjustmentId, adjustment);
-        updates.put("/Product/" + selectedProduct.getProductId() + "/quantity", Math.max(0, newStock));
 
         FirebaseDatabase.getInstance().getReference().updateChildren(updates)
                 .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(this, "Stock adjusted successfully", Toast.LENGTH_SHORT).show();
-                    clearForm();
+                    productRepository.updateProductQuantity(selectedProduct.getProductId(), finalNewStock, new ProductRepository.OnProductUpdatedListener() {
+                        @Override
+                        public void onProductUpdated() {
+                            runOnUiThread(() -> {
+                                Toast.makeText(StockAdjustmentActivity.this, "Stock adjusted successfully", Toast.LENGTH_SHORT).show();
+                                clearForm();
+                            });
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            runOnUiThread(() -> Toast.makeText(StockAdjustmentActivity.this, "Error updating product: " + error, Toast.LENGTH_SHORT).show());
+                        }
+                    });
                 })
                 .addOnFailureListener(e -> Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }

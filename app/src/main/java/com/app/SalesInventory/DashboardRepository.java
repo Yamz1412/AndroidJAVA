@@ -7,8 +7,11 @@ import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.data.Entry;
 
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Random;
+import java.util.Map;
 
 public class DashboardRepository {
     private SalesRepository salesRepository;
@@ -60,17 +63,24 @@ public class DashboardRepository {
         Double revenue = revenueLive.getValue();
 
         double inventoryValue = 0;
+        int lowOrCriticalCount = 0;
+
         if (products != null) {
             for (Product p : products) {
                 inventoryValue += (p.getQuantity() * p.getCostPrice());
+                if (p.isCriticalStock() || p.isLowStock()) {
+                    lowOrCriticalCount++;
+                }
             }
         }
+
+        int pendingAlertsCount = alerts != null ? alerts.size() : 0;
 
         DashboardMetrics metrics = new DashboardMetrics(
                 totalSales != null ? totalSales : 0.0,
                 inventoryValue,
-                alerts != null ? alerts.size() : 0,
-                0,
+                lowOrCriticalCount,
+                pendingAlertsCount,
                 revenue != null ? revenue : 0.0
         );
         metricsLiveData.setValue(metrics);
@@ -98,27 +108,86 @@ public class DashboardRepository {
         });
     }
 
-    public List<Entry> getSalesTrendData() {
+    public List<Entry> getSalesTrendData(List<Sales> allSales) {
         List<Entry> entries = new ArrayList<>();
-        Random random = new Random();
-        entries.add(new Entry(0, 12000 + random.nextFloat() * 5000));
-        entries.add(new Entry(1, 15000 + random.nextFloat() * 8000));
-        entries.add(new Entry(2, 14000 + random.nextFloat() * 6000));
-        entries.add(new Entry(3, 18000 + random.nextFloat() * 7000));
-        entries.add(new Entry(4, 16000 + random.nextFloat() * 9000));
-        entries.add(new Entry(5, 20000 + random.nextFloat() * 8000));
-        entries.add(new Entry(6, 17000 + random.nextFloat() * 7000));
+        if (allSales == null || allSales.isEmpty()) {
+            return entries;
+        }
+
+        int days = 7;
+        long now = System.currentTimeMillis();
+        long oneDayMillis = 24L * 60L * 60L * 1000L;
+        Map<Integer, Double> dayIndexToAmount = new HashMap<>();
+
+        for (Sales s : allSales) {
+            long ts = s.getTimestamp() > 0 ? s.getTimestamp() : s.getDate();
+            if (ts <= 0) continue;
+            long diff = now - ts;
+            int dayOffset = (int) (diff / oneDayMillis);
+            if (dayOffset < 0 || dayOffset >= days) continue;
+            int index = days - 1 - dayOffset;
+            double amount = s.getTotalPrice();
+            Double current = dayIndexToAmount.get(index);
+            dayIndexToAmount.put(index, (current != null ? current : 0.0) + amount);
+        }
+
+        for (int i = 0; i < days; i++) {
+            double value = dayIndexToAmount.get(i) != null ? dayIndexToAmount.get(i) : 0.0;
+            entries.add(new Entry(i, (float) value));
+        }
+
         return entries;
     }
 
-    public List<BarEntry> getTopProductsData() {
+    public List<BarEntry> getTopProductsData(List<Sales> allSales) {
         List<BarEntry> entries = new ArrayList<>();
-        entries.add(new BarEntry(0, 350));
-        entries.add(new BarEntry(1, 280));
-        entries.add(new BarEntry(2, 220));
-        entries.add(new BarEntry(3, 190));
-        entries.add(new BarEntry(4, 150));
+        if (allSales == null || allSales.isEmpty()) {
+            return entries;
+        }
+
+        Map<String, Integer> productQty = new HashMap<>();
+        for (Sales s : allSales) {
+            String productId = s.getProductId();
+            if (productId == null) continue;
+            int qty = s.getQuantity();
+            Integer current = productQty.get(productId);
+            productQty.put(productId, (current != null ? current : 0) + qty);
+        }
+
+        List<Map.Entry<String, Integer>> sorted = new ArrayList<>(productQty.entrySet());
+        Collections.sort(sorted, (a, b) -> Integer.compare(b.getValue(), a.getValue()));
+        int max = Math.min(5, sorted.size());
+
+        for (int i = 0; i < max; i++) {
+            Map.Entry<String, Integer> e = sorted.get(i);
+            entries.add(new BarEntry(i, e.getValue()));
+        }
+
         return entries;
+    }
+
+    public int[] getInventoryStatusBreakdown(List<Product> products) {
+        int inStock = 0;
+        int low = 0;
+        int critical = 0;
+        int out = 0;
+
+        if (products != null) {
+            for (Product p : products) {
+                int qty = p.getQuantity();
+                if (qty <= 0) {
+                    out++;
+                } else if (p.isCriticalStock()) {
+                    critical++;
+                } else if (p.isLowStock()) {
+                    low++;
+                } else {
+                    inStock++;
+                }
+            }
+        }
+
+        return new int[]{inStock, low, critical, out};
     }
 
     public interface OnMetricsLoadedListener {

@@ -53,6 +53,7 @@ public class MainActivity extends BaseActivity {
     private ImageButton btnSettings;
     private ImageButton btnProfile;
     private SwipeRefreshLayout swipeRefresh;
+    private String currentUserRole = "Unknown";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +63,7 @@ public class MainActivity extends BaseActivity {
         setupViewModel();
         setupCharts();
         setupClickListeners();
+        resolveUserRoleAndConfigureUI();
         loadDashboardData();
     }
 
@@ -194,22 +196,37 @@ public class MainActivity extends BaseActivity {
 
         if (btnManageUsers != null)
             btnManageUsers.setOnClickListener(v -> {
-                authManager.isCurrentUserAdminAsync(new AuthManager.SimpleCallback() {
-                    @Override
-                    public void onComplete(boolean success) {
-                        runOnUiThread(() -> {
-                            if (success) {
-                                startActivity(new Intent(MainActivity.this, AdminManageUsersActivity.class));
-                            } else {
-                                Toast.makeText(MainActivity.this, "Admin access required", Toast.LENGTH_LONG).show();
-                            }
-                        });
+                authManager.isCurrentUserAdminAsync(success -> runOnUiThread(() -> {
+                    if (success) {
+                        startActivity(new Intent(MainActivity.this, AdminManageUsersActivity.class));
+                    } else {
+                        Toast.makeText(MainActivity.this, "Admin access required", Toast.LENGTH_LONG).show();
                     }
-                });
+                }));
             });
 
         if (swipeRefresh != null)
             swipeRefresh.setOnRefreshListener(this::loadDashboardData);
+    }
+
+    private void resolveUserRoleAndConfigureUI() {
+        authManager.getCurrentUserRoleAsync(role -> runOnUiThread(() -> {
+            currentUserRole = role == null ? "Unknown" : role;
+            applyRoleVisibility();
+        }));
+    }
+
+    private void applyRoleVisibility() {
+        boolean isAdmin = "Admin".equalsIgnoreCase(currentUserRole) || "admin".equalsIgnoreCase(currentUserRole);
+        if (!isAdmin) {
+            if (btnManageUsers != null) btnManageUsers.setVisibility(View.GONE);
+            if (btnCreatePO != null) btnCreatePO.setVisibility(View.GONE);
+            if (btnAddProduct != null) btnAddProduct.setVisibility(View.GONE);
+        } else {
+            if (btnManageUsers != null) btnManageUsers.setVisibility(View.VISIBLE);
+            if (btnCreatePO != null) btnCreatePO.setVisibility(View.VISIBLE);
+            if (btnAddProduct != null) btnAddProduct.setVisibility(View.VISIBLE);
+        }
     }
 
     private void loadDashboardData() {
@@ -250,6 +267,7 @@ public class MainActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        resolveUserRoleAndConfigureUI();
         loadDashboardData();
     }
 }

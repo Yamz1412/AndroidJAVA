@@ -7,9 +7,15 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.bumptech.glide.Glide;
+
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -59,6 +65,28 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
         holder.price.setText("Selling: ₱" + String.format("%.2f", p.getSellingPrice()));
         holder.syncState.setText("");
         holder.retryBtn.setVisibility(View.GONE);
+
+        String imageUrl = p.getImageUrl();
+        String imagePath = p.getImagePath();
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+            Glide.with(ctx)
+                    .load(imageUrl)
+                    .placeholder(R.drawable.ic_image_placeholder)
+                    .error(R.drawable.ic_image_placeholder)
+                    .centerCrop()
+                    .into(holder.productImage);
+        } else if (imagePath != null && !imagePath.isEmpty()) {
+            File f = new File(imagePath);
+            Glide.with(ctx)
+                    .load(f.exists() ? f : null)
+                    .placeholder(R.drawable.ic_image_placeholder)
+                    .error(R.drawable.ic_image_placeholder)
+                    .centerCrop()
+                    .into(holder.productImage);
+        } else {
+            holder.productImage.setImageResource(R.drawable.ic_image_placeholder);
+        }
+
         final long localId = p.getLocalId();
         new Thread(() -> {
             ProductDao dao = AppDatabase.getInstance(ctx).productDao();
@@ -91,6 +119,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
                 });
             }
         }).start();
+
         if (authManager.isCurrentUserAdmin()) {
             holder.itemView.setOnClickListener(v -> {
                 Intent i = new Intent(ctx, EditProduct.class);
@@ -100,6 +129,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
         } else {
             holder.itemView.setOnClickListener(null);
         }
+
         holder.retryBtn.setOnClickListener(v -> repository.retrySync(localId));
     }
 
@@ -111,6 +141,8 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
     static class VH extends RecyclerView.ViewHolder {
         TextView name, category, qty, price, syncState;
         ImageButton retryBtn;
+        ImageView productImage;
+
         VH(@NonNull View itemView) {
             super(itemView);
             name = itemView.findViewById(R.id.tvProductName);
@@ -119,6 +151,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
             price = itemView.findViewById(R.id.tvSellingPrice);
             syncState = itemView.findViewById(R.id.tvSyncState);
             retryBtn = itemView.findViewById(R.id.btnRetrySync);
+            productImage = itemView.findViewById(R.id.ivProductImage);
         }
     }
 }

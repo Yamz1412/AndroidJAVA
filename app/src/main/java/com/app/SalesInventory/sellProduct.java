@@ -2,7 +2,6 @@ package com.app.SalesInventory;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageCapture;
@@ -21,6 +20,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ListView;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -56,6 +57,17 @@ public class sellProduct extends BaseActivity  {
     private Button btnCaptureReceipt;
     private TextView tvReceiptStatus;
 
+    private RadioGroup rgDeliveryType;
+    private RadioButton rbWalkIn;
+    private RadioButton rbDelivery;
+    private View layoutDeliveryDetails;
+    private TextInputEditText etDeliveryName;
+    private TextInputEditText etDeliveryPhone;
+    private TextInputEditText etDeliveryAddress;
+    private RadioGroup rgDeliveryPayment;
+    private RadioButton rbDeliveryCOD;
+    private RadioButton rbDeliveryEPayment;
+
     private ListView cartListView;
     private List<CartManager.CartItem> cartItems;
     private android.widget.BaseAdapter cartAdapter;
@@ -70,6 +82,8 @@ public class sellProduct extends BaseActivity  {
     private boolean flashOn = false;
 
     private CartManager cartManager;
+    private CriticalStockNotifier criticalNotifier;
+    private ProductRepository.OnCriticalStockListener criticalListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,6 +100,12 @@ public class sellProduct extends BaseActivity  {
     private void initRepositories() {
         salesRepository = SalesRepository.getInstance();
         productRepository = ProductRepository.getInstance(getApplication());
+        cartManager = CartManager.getInstance();
+        criticalNotifier = CriticalStockNotifier.getInstance();
+        criticalListener = product -> runOnUiThread(() ->
+                criticalNotifier.showCriticalDialog(this, product)
+        );
+        productRepository.registerCriticalStockListener(criticalListener);
     }
 
     private void initViews() {
@@ -101,6 +121,18 @@ public class sellProduct extends BaseActivity  {
         layoutEPaymentSection = findViewById(R.id.layoutEPaymentSection);
         btnCaptureReceipt = findViewById(R.id.btnCaptureReceipt);
         tvReceiptStatus = findViewById(R.id.tvReceiptStatus);
+
+        rgDeliveryType = findViewById(R.id.rgDeliveryType);
+        rbWalkIn = findViewById(R.id.rbWalkIn);
+        rbDelivery = findViewById(R.id.rbDelivery);
+
+        layoutDeliveryDetails = findViewById(R.id.layoutDeliveryDetails);
+        etDeliveryName = findViewById(R.id.etDeliveryName);
+        etDeliveryPhone = findViewById(R.id.etDeliveryPhone);
+        etDeliveryAddress = findViewById(R.id.etDeliveryAddress);
+        rgDeliveryPayment = findViewById(R.id.rgDeliveryPayment);
+        rbDeliveryCOD = findViewById(R.id.rbDeliveryCOD);
+        rbDeliveryEPayment = findViewById(R.id.rbDeliveryEPayment);
 
         cartListView = findViewById(R.id.cartListView);
 
@@ -142,6 +174,14 @@ public class sellProduct extends BaseActivity  {
         btnCaptureReceipt.setOnClickListener(v -> checkCameraPermissionAndShowDialog());
         btnConfirmSale.setOnClickListener(v -> confirmSale());
         btnEditCart.setOnClickListener(v -> showEditCartDialog());
+
+        rgDeliveryType.setOnCheckedChangeListener((group, checkedId) -> {
+            if (checkedId == R.id.rbDelivery) {
+                layoutDeliveryDetails.setVisibility(View.VISIBLE);
+            } else {
+                layoutDeliveryDetails.setVisibility(View.GONE);
+            }
+        });
     }
 
     private void initCart() {
@@ -519,6 +559,39 @@ public class sellProduct extends BaseActivity  {
             Toast.makeText(this, "Cart is empty or total is zero", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        int deliveryChecked = rgDeliveryType.getCheckedRadioButtonId();
+        boolean isDelivery = deliveryChecked == R.id.rbDelivery;
+        String deliveryName = "";
+        String deliveryPhone = "";
+        String deliveryAddress = "";
+        String deliveryPayment = "";
+
+        if (isDelivery) {
+            deliveryName = etDeliveryName.getText() != null ? etDeliveryName.getText().toString().trim() : "";
+            deliveryPhone = etDeliveryPhone.getText() != null ? etDeliveryPhone.getText().toString().trim() : "";
+            deliveryAddress = etDeliveryAddress.getText() != null ? etDeliveryAddress.getText().toString().trim() : "";
+            int payChecked = rgDeliveryPayment.getCheckedRadioButtonId();
+            if (payChecked == R.id.rbDeliveryEPayment) {
+                deliveryPayment = "E-Payment";
+            } else {
+                deliveryPayment = "COD";
+            }
+
+            if (deliveryName.isEmpty()) {
+                etDeliveryName.setError("Required");
+                return;
+            }
+            if (deliveryPhone.isEmpty()) {
+                etDeliveryPhone.setError("Required");
+                return;
+            }
+            if (deliveryAddress.isEmpty()) {
+                etDeliveryAddress.setError("Required");
+                return;
+            }
+        }
+
         String method = (String) spinnerPaymentMethod.getSelectedItem();
         if ("Cash".equals(method)) {
             String cashStr = etCashGiven.getText() != null ? etCashGiven.getText().toString().trim() : "";
@@ -537,19 +610,44 @@ public class sellProduct extends BaseActivity  {
                 etCashGiven.setError("Cash is less than total");
                 return;
             }
-            saveSale("Cash");
+            saveSale("Cash", isDelivery, deliveryName, deliveryPhone, deliveryAddress, deliveryPayment);
         } else {
             if (!receiptCaptured) {
                 Toast.makeText(this, "Please capture payment receipt first", Toast.LENGTH_SHORT).show();
                 return;
             }
-            saveSale("E-Payment");
+            saveSale("E-Payment", isDelivery, deliveryName, deliveryPhone, deliveryAddress, deliveryPayment);
         }
     }
 
-    private void saveSale(String paymentMethod) {
+    private void saveSale(String paymentMethod,
+                          boolean isDelivery,
+                          String deliveryName,
+                          String deliveryPhone,
+                          String deliveryAddress,
+                          String deliveryPayment) {
         List<CartManager.CartItem> items = cartManager.getItems();
+        String orderId = java.util.UUID.randomUUID().toString();
+        long now = System.currentTimeMillis();
         if (items.isEmpty()) return;
+
+        String deliveryType;
+        String deliveryStatus;
+        long deliveryDate;
+
+        if (isDelivery) {
+            deliveryType = "DELIVERY";
+            deliveryStatus = "PENDING";
+            deliveryDate = 0;
+        } else {
+            deliveryType = "WALK_IN";
+            deliveryStatus = "DELIVERED";
+            deliveryDate = now;
+            deliveryName = "";
+            deliveryPhone = "";
+            deliveryAddress = "";
+            deliveryPayment = "";
+        }
 
         double subtotal = cartManager.getSubtotal();
         for (CartManager.CartItem item : items) {
@@ -558,14 +656,22 @@ public class sellProduct extends BaseActivity  {
             double lineFinal = finalTotal * ratio;
 
             Sales sale = new Sales();
+            sale.setOrderId(orderId);
             sale.setProductId(item.productId);
             sale.setProductName(item.productName);
             sale.setQuantity(item.quantity);
             sale.setPrice(item.unitPrice);
             sale.setTotalPrice(lineFinal);
             sale.setPaymentMethod(paymentMethod);
-            sale.setDate(System.currentTimeMillis());
-            sale.setTimestamp(System.currentTimeMillis());
+            sale.setDate(now);
+            sale.setTimestamp(now);
+            sale.setDeliveryType(deliveryType);
+            sale.setDeliveryStatus(deliveryStatus);
+            sale.setDeliveryDate(deliveryDate);
+            sale.setDeliveryName(deliveryName);
+            sale.setDeliveryPhone(deliveryPhone);
+            sale.setDeliveryAddress(deliveryAddress);
+            sale.setDeliveryPaymentMethod(deliveryPayment);
 
             salesRepository.addSale(sale, new SalesRepository.OnSaleAddedListener() {
                 @Override
@@ -607,6 +713,12 @@ public class sellProduct extends BaseActivity  {
         discountPercent = 0;
         receiptCaptured = false;
         tvReceiptStatus.setText("No receipt captured");
+        rbWalkIn.setChecked(true);
+        etDeliveryName.setText("");
+        etDeliveryPhone.setText("");
+        etDeliveryAddress.setText("");
+        rbDeliveryCOD.setChecked(true);
+        layoutDeliveryDetails.setVisibility(View.GONE);
     }
 
     @Override
@@ -621,6 +733,14 @@ public class sellProduct extends BaseActivity  {
             } else {
                 Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show();
             }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (productRepository != null && criticalListener != null) {
+            productRepository.unregisterCriticalStockListener(criticalListener);
         }
     }
 }

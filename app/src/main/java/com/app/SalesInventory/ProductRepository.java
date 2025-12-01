@@ -1,11 +1,14 @@
 package com.app.SalesInventory;
 
 import android.app.Application;
+
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.Observer;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 
 public class ProductRepository {
@@ -14,6 +17,12 @@ public class ProductRepository {
     private ProductDao productDao;
     private MediatorLiveData<List<Product>> allProducts;
     private Application application;
+    private AlertRepository alertRepository;
+    private List<OnCriticalStockListener> criticalStockListeners = new CopyOnWriteArrayList<>();
+
+    public interface OnCriticalStockListener {
+        void onProductCritical(Product product);
+    }
 
     private ProductRepository(Application application) {
         this.application = application;
@@ -31,6 +40,7 @@ public class ProductRepository {
             }
             allProducts.setValue(list);
         });
+        alertRepository = AlertRepository.getInstance(application);
         SyncScheduler.schedulePeriodicSync(application.getApplicationContext());
     }
 
@@ -39,6 +49,16 @@ public class ProductRepository {
             instance = new ProductRepository(application);
         }
         return instance;
+    }
+
+    public void registerCriticalStockListener(OnCriticalStockListener listener) {
+        if (listener != null && !criticalStockListeners.contains(listener)) {
+            criticalStockListeners.add(listener);
+        }
+    }
+
+    public void unregisterCriticalStockListener(OnCriticalStockListener listener) {
+        criticalStockListeners.remove(listener);
     }
 
     public LiveData<List<Product>> getAllProducts() {
@@ -83,6 +103,10 @@ public class ProductRepository {
     }
 
     public void addProduct(Product product, OnProductAddedListener listener) {
+        addProduct(product, null, listener);
+    }
+
+    public void addProduct(Product product, String imagePath, OnProductAddedListener listener) {
         Executors.newSingleThreadExecutor().execute(() -> {
             if (!AuthManager.getInstance().isCurrentUserApproved()) {
                 listener.onError("User not approved");
@@ -93,6 +117,8 @@ public class ProductRepository {
             e.dateAdded = now;
             e.lastUpdated = now;
             e.syncState = "PENDING";
+            e.imagePath = imagePath;
+            e.imageUrl = null;
             long localId = productDao.insert(e);
             SyncScheduler.enqueueImmediateSync(application.getApplicationContext());
             listener.onProductAdded("local:" + localId);
@@ -100,6 +126,10 @@ public class ProductRepository {
     }
 
     public void updateProduct(Product product, OnProductUpdatedListener listener) {
+        updateProduct(product, null, listener);
+    }
+
+    public void updateProduct(Product product, String imagePath, OnProductUpdatedListener listener) {
         Executors.newSingleThreadExecutor().execute(() -> {
             if (!AuthManager.getInstance().isCurrentUserApproved()) {
                 listener.onError("User not approved");
@@ -109,6 +139,7 @@ public class ProductRepository {
             if (product.getProductId() != null && !product.getProductId().isEmpty()) {
                 existing = productDao.getByProductIdSync(product.getProductId());
             }
+            long now = System.currentTimeMillis();
             if (existing != null) {
                 existing.productName = product.getProductName();
                 existing.categoryId = product.getCategoryId();
@@ -118,14 +149,22 @@ public class ProductRepository {
                 existing.sellingPrice = product.getSellingPrice();
                 existing.quantity = product.getQuantity();
                 existing.reorderLevel = product.getReorderLevel();
+                existing.criticalLevel = product.getCriticalLevel();
+                existing.ceilingLevel = product.getCeilingLevel();
                 existing.unit = product.getUnit();
-                existing.lastUpdated = System.currentTimeMillis();
+                existing.lastUpdated = now;
                 existing.syncState = "PENDING";
+                if (imagePath != null) {
+                    existing.imagePath = imagePath;
+                    existing.imageUrl = null;
+                }
                 productDao.update(existing);
             } else {
                 ProductEntity e = mapProductToEntity(product);
-                e.lastUpdated = System.currentTimeMillis();
+                e.lastUpdated = now;
                 e.syncState = "PENDING";
+                e.imagePath = imagePath;
+                e.imageUrl = null;
                 productDao.insert(e);
             }
             SyncScheduler.enqueueImmediateSync(application.getApplicationContext());
@@ -156,14 +195,77 @@ public class ProductRepository {
         Executors.newSingleThreadExecutor().execute(() -> {
             ProductEntity existing = productDao.getByProductIdSync(productId);
             if (existing != null) {
+                int oldQuantity = existing.quantity;
                 existing.quantity = newQuantity;
                 existing.lastUpdated = System.currentTimeMillis();
                 existing.syncState = "PENDING";
                 productDao.update(existing);
                 SyncScheduler.enqueueImmediateSync(application.getApplicationContext());
+
+                boolean wasCritical = existing.criticalLevel > 0 && oldQuantity <= existing.criticalLevel;
+                boolean isNowCritical = existing.criticalLevel > 0 && newQuantity <= existing.criticalLevel;
+                boolean isNowLowOnly = !isNowCritical && existing.reorderLevel > 0 && newQuantity <= existing.reorderLevel;
+                boolean recoveredFromCritical = wasCritical && newQuantity > existing.criticalLevel;
+
+                if (recoveredFromCritical) {
+                    CriticalStockNotifier.getInstance().clearForProduct(existing.productId);
+                }
+
+                if (isNowCritical) {
+                    createCriticalStockAlert(existing);
+                    notifyCriticalStockListeners(existing);
+                } else if (isNowLowOnly) {
+                    createLowStockAlert(existing);
+                }
+
                 listener.onProductUpdated();
             } else {
                 listener.onError("Product not found locally");
+            }
+        });
+    }
+
+    private void notifyCriticalStockListeners(ProductEntity e) {
+        Product p = mapEntityToProduct(e);
+        for (OnCriticalStockListener l : criticalStockListeners) {
+            l.onProductCritical(p);
+        }
+    }
+
+    private void createLowStockAlert(ProductEntity e) {
+        if (alertRepository == null) return;
+        Alert alert = new Alert();
+        alert.setProductId(e.productId);
+        alert.setType("LOW_STOCK");
+        String name = e.productName == null ? "" : e.productName;
+        alert.setMessage("Low stock for " + name + " (Qty: " + e.quantity + ")");
+        alert.setRead(false);
+        alert.setTimestamp(System.currentTimeMillis());
+        alertRepository.addAlert(alert, new AlertRepository.OnAlertAddedListener() {
+            @Override
+            public void onAlertAdded(String alertId) {
+            }
+            @Override
+            public void onError(String error) {
+            }
+        });
+    }
+
+    private void createCriticalStockAlert(ProductEntity e) {
+        if (alertRepository == null) return;
+        Alert alert = new Alert();
+        alert.setProductId(e.productId);
+        alert.setType("CRITICAL_STOCK");
+        String name = e.productName == null ? "" : e.productName;
+        alert.setMessage("Critical stock for " + name + " (Qty: " + e.quantity + ")");
+        alert.setRead(false);
+        alert.setTimestamp(System.currentTimeMillis());
+        alertRepository.addAlert(alert, new AlertRepository.OnAlertAddedListener() {
+            @Override
+            public void onAlertAdded(String alertId) {
+            }
+            @Override
+            public void onError(String error) {
             }
         });
     }
@@ -183,6 +285,7 @@ public class ProductRepository {
         if (p == null || p.getProductId() == null) return;
         Executors.newSingleThreadExecutor().execute(() -> {
             ProductEntity existing = productDao.getByProductIdSync(p.getProductId());
+            long now = System.currentTimeMillis();
             if (existing != null) {
                 existing.productName = p.getProductName();
                 existing.categoryId = p.getCategoryId();
@@ -200,7 +303,8 @@ public class ProductRepository {
                 existing.dateAdded = p.getDateAdded();
                 existing.addedBy = p.getAddedBy();
                 existing.isActive = p.isActive();
-                existing.lastUpdated = System.currentTimeMillis();
+                existing.imageUrl = p.getImageUrl();
+                existing.lastUpdated = now;
                 existing.syncState = "SYNCED";
                 productDao.update(existing);
             } else {
@@ -222,7 +326,8 @@ public class ProductRepository {
                 e.dateAdded = p.getDateAdded();
                 e.addedBy = p.getAddedBy();
                 e.isActive = p.isActive();
-                e.lastUpdated = System.currentTimeMillis();
+                e.imageUrl = p.getImageUrl();
+                e.lastUpdated = now;
                 e.syncState = "SYNCED";
                 productDao.insert(e);
             }
@@ -230,7 +335,28 @@ public class ProductRepository {
     }
 
     private ProductEntity mapProductToEntity(Product p) {
-        return new ProductEntity(p.getProductName(), p.getCategoryId(), p.getCategoryName(), p.getDescription(), p.getCostPrice(), p.getSellingPrice(), p.getQuantity(), p.getReorderLevel(), p.getCriticalLevel(), p.getCeilingLevel(), p.getUnit(), p.getBarcode(), p.getSupplier(), p.getDateAdded(), p.getAddedBy(), p.isActive(), p.getDateAdded(), "PENDING");
+        return new ProductEntity(
+                p.getProductName(),
+                p.getCategoryId(),
+                p.getCategoryName(),
+                p.getDescription(),
+                p.getCostPrice(),
+                p.getSellingPrice(),
+                p.getQuantity(),
+                p.getReorderLevel(),
+                p.getCriticalLevel(),
+                p.getCeilingLevel(),
+                p.getUnit(),
+                p.getBarcode(),
+                p.getSupplier(),
+                p.getDateAdded(),
+                p.getAddedBy(),
+                p.isActive(),
+                p.getDateAdded(),
+                "PENDING",
+                p.getImagePath(),
+                p.getImageUrl()
+        );
     }
 
     private Product mapEntityToProduct(ProductEntity e) {
@@ -253,6 +379,8 @@ public class ProductRepository {
         p.setDateAdded(e.dateAdded);
         p.setAddedBy(e.addedBy);
         p.setActive(e.isActive);
+        p.setImagePath(e.imagePath);
+        p.setImageUrl(e.imageUrl);
         return p;
     }
 

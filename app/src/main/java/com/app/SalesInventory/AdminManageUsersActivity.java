@@ -6,9 +6,10 @@ import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-import androidx.appcompat.app.AppCompatActivity;
+
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.FirebaseApp;
@@ -22,13 +23,14 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QuerySnapshot;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-public class AdminManageUsersActivity extends AppCompatActivity {
+public class AdminManageUsersActivity extends BaseActivity {
     private static final String TAG = "AdminManageUsers";
     private RecyclerView rvPending;
     private RecyclerView rvManage;
@@ -70,6 +72,7 @@ public class AdminManageUsersActivity extends AppCompatActivity {
                 }
                 approveUser(uid);
             }
+
             @Override
             public void onCancel(String uid) {
                 if (!adminCheckCompleted) {
@@ -103,7 +106,8 @@ public class AdminManageUsersActivity extends AppCompatActivity {
             adminCheckCompleted = true;
             runOnUiThread(() -> {
                 if (!currentUserIsAdmin) {
-                    Toast.makeText(AdminManageUsersActivity.this, "You are not an admin. Actions are disabled.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(AdminManageUsersActivity.this, "You are not an admin. Closing screen.", Toast.LENGTH_LONG).show();
+                    finish();
                 }
             });
         });

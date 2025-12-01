@@ -1,6 +1,9 @@
 package com.app.SalesInventory;
 
 import androidx.lifecycle.MutableLiveData;
+
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.firestore. DocumentReference;
 import com.google. firebase.firestore.QuerySnapshot;
 import java.util.ArrayList;
@@ -152,27 +155,28 @@ public class SalesRepository {
     }
 
     public void addSale(Sales sale, OnSaleAddedListener listener) {
-        if (! AuthManager.getInstance().isCurrentUserApproved()) {
-            listener. onError("User not approved");
+        if (!AuthManager.getInstance().isCurrentUserApproved()) {
+            listener.onError("User not approved");
             return;
         }
         Map<String, Object> map = new HashMap<>();
+        map.put("orderId", sale.getOrderId() != null ? sale.getOrderId() : "");
         map.put("productId", sale.getProductId());
         map.put("productName", sale.getProductName());
         map.put("quantity", sale.getQuantity());
         map.put("price", sale.getPrice());
-        map. put("totalPrice", sale.getTotalPrice());
+        map.put("totalPrice", sale.getTotalPrice());
         map.put("paymentMethod", sale.getPaymentMethod() != null ? sale.getPaymentMethod() : "");
-        map.put("paymentReference", sale.getPaymentReference() != null ? sale.getPaymentReference() : "");
         map.put("date", sale.getDate() > 0 ? sale.getDate() : System.currentTimeMillis());
         map.put("timestamp", firestoreManager.getServerTimestamp());
-        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath()).add(map). addOnSuccessListener((DocumentReference documentReference) -> {
-            String saleId = documentReference.getId();
-            sale.setId(saleId);
-            listener.onSaleAdded(saleId);
-        }).addOnFailureListener(e -> {
-            listener.onError(e.getMessage() != null ? e.getMessage() : "Failed to add sale");
-        });
+        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath()).add(map)
+                .addOnSuccessListener((DocumentReference documentReference) -> {
+                    String saleId = documentReference.getId();
+                    sale.setId(saleId);
+                    listener.onSaleAdded(saleId);
+                }).addOnFailureListener(e -> {
+                    listener.onError(e.getMessage() != null ? e.getMessage() : "Failed to add sale");
+                });
     }
 
     public void deleteSale(String saleId, OnSalesDeletedListener listener) {
@@ -189,6 +193,13 @@ public class SalesRepository {
         calendar.set(java.util.Calendar.MINUTE, 0);
         calendar.set(java.util.Calendar. SECOND, 0);
         return calendar.getTimeInMillis();
+    }
+
+    public void updateSaleDeliveryStatus(Sales sale) {
+        if (sale == null || sale.getId() == null) return;
+        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("Sales").child(sale.getId());
+        ref.child("deliveryStatus").setValue(sale.getDeliveryStatus());
+        ref.child("deliveryDate").setValue(sale.getDeliveryDate());
     }
 
     private long getEndOfDay() {

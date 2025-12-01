@@ -14,6 +14,16 @@
         android:layout_height="wrap_content"
         android:padding="15dp">
 
+        <ImageView
+            android:id="@+id/ivProductImageSell"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:src="@drawable/ic_image_placeholder"
+            android:scaleType="centerCrop"
+            android:layout_marginEnd="12dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
         <TextView
             android:id="@+id/NameTVS11"
             android:layout_width="0dp"
@@ -22,10 +32,23 @@
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#333333"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/ivProductImageSell"
             app:layout_constraintEnd_toStartOf="@+id/BadgeSell"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintHorizontal_weight="1"/>
+
+
+        <TextView
+            android:id="@+id/CodeTVS11"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="56dp"
+            android:layout_marginTop="8dp"
+            android:text="CODE-001"
+            android:textColor="#757575"
+            android:textSize="12sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/NameTVS11" />
 
         <TextView
             android:id="@+id/BadgeSell"
@@ -40,17 +63,6 @@
             android:paddingVertical="2dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"/>
-
-        <TextView
-            android:id="@+id/CodeTVS11"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="CODE-001"
-            android:textSize="12sp"
-            android:textColor="#757575"
-            android:layout_marginTop="4dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/NameTVS11"/>
 
         <View
             android:id="@+id/divider"

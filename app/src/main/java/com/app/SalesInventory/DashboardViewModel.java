@@ -34,6 +34,9 @@ public class DashboardViewModel extends AndroidViewModel {
     private final MutableLiveData<String> errorMessage;
     private final ExecutorService executorService;
 
+    private final SalesRepository salesRepository;
+    private final ProductRepository productRepository;
+
     public DashboardViewModel(@NonNull Application application) {
         super(application);
         repository = new DashboardRepository();
@@ -42,6 +45,8 @@ public class DashboardViewModel extends AndroidViewModel {
         isLoading = new MutableLiveData<>(false);
         errorMessage = new MutableLiveData<>();
         executorService = Executors.newSingleThreadExecutor();
+        salesRepository = SalesRepository.getInstance();
+        productRepository = ProductRepository.getInstance(SalesInventoryApplication.getInstance());
     }
 
     public LiveData<DashboardMetrics> getDashboardMetrics() {
@@ -94,14 +99,24 @@ public class DashboardViewModel extends AndroidViewModel {
     public void loadChartData(LineChart salesTrendChart, BarChart topProductsChart, PieChart inventoryStatusChart) {
         executorService.execute(() -> {
             try {
+                LiveData<List<Sales>> salesLive = salesRepository.getAllSales();
+                LiveData<List<Product>> productsLive = productRepository.getAllProducts();
+
+                List<Sales> allSales = salesLive.getValue();
+                List<Product> products = productsLive.getValue();
+
+                List<Entry> salesTrendEntries = repository.getSalesTrendData(allSales);
+                List<BarEntry> topProductEntries = repository.getTopProductsData(allSales);
+                int[] invStatus = repository.getInventoryStatusBreakdown(products);
+
                 if (salesTrendChart != null) {
-                    setupSalesTrendChart(salesTrendChart);
+                    setupSalesTrendChart(salesTrendChart, salesTrendEntries);
                 }
                 if (topProductsChart != null) {
-                    setupTopProductsChart(topProductsChart);
+                    setupTopProductsChart(topProductsChart, topProductEntries);
                 }
                 if (inventoryStatusChart != null) {
-                    setupInventoryStatusChart(inventoryStatusChart);
+                    setupInventoryStatusChart(inventoryStatusChart, invStatus);
                 }
             } catch (Exception e) {
                 errorMessage.postValue("Error loading charts: " + e.getMessage());
@@ -109,9 +124,9 @@ public class DashboardViewModel extends AndroidViewModel {
         });
     }
 
-    private void setupSalesTrendChart(LineChart chart) {
-        List<Entry> entries = repository.getSalesTrendData();
-        LineDataSet dataSet = new LineDataSet(entries, "Daily Sales");
+    private void setupSalesTrendChart(LineChart chart, List<Entry> entries) {
+        if (entries == null) entries = new ArrayList<>();
+        LineDataSet dataSet = new LineDataSet(entries, "Sales (Last 7 Days)");
         dataSet.setColor(Color.parseColor("#FF6B6B"));
         dataSet.setValueTextColor(Color.BLACK);
         dataSet.setLineWidth(2f);
@@ -123,6 +138,7 @@ public class DashboardViewModel extends AndroidViewModel {
         dataSet.setFillAlpha(30);
         LineData data = new LineData(dataSet);
         data.setValueTextSize(9f);
+        List<Entry> finalEntries = entries;
         chart.post(() -> {
             chart.setData(data);
             chart.getXAxis().setDrawGridLines(false);
@@ -133,18 +149,23 @@ public class DashboardViewModel extends AndroidViewModel {
             chart.setDragEnabled(true);
             chart.setScaleEnabled(true);
             chart.setPinchZoom(true);
+            chart.getDescription().setText("Daily net sales");
+            if (finalEntries.isEmpty()) {
+                chart.getDescription().setText("No sales data");
+            }
             chart.invalidate();
         });
     }
 
-    private void setupTopProductsChart(BarChart chart) {
-        List<BarEntry> entries = repository.getTopProductsData();
-        BarDataSet dataSet = new BarDataSet(entries, "Product Sales");
+    private void setupTopProductsChart(BarChart chart, List<BarEntry> entries) {
+        if (entries == null) entries = new ArrayList<>();
+        BarDataSet dataSet = new BarDataSet(entries, "Top Products (Qty Sold)");
         dataSet.setColor(Color.parseColor("#4ECDC4"));
         dataSet.setValueTextColor(Color.BLACK);
         dataSet.setValueTextSize(9f);
         BarData data = new BarData(dataSet);
         data.setBarWidth(0.6f);
+        List<BarEntry> finalEntries = entries;
         chart.post(() -> {
             chart.setData(data);
             chart.getXAxis().setDrawGridLines(false);
@@ -154,18 +175,31 @@ public class DashboardViewModel extends AndroidViewModel {
             chart.setTouchEnabled(true);
             chart.setDragEnabled(true);
             chart.setScaleEnabled(true);
+            chart.getDescription().setText(finalEntries.isEmpty() ? "No sales data" : "Top selling products");
             chart.invalidate();
         });
     }
 
-    private void setupInventoryStatusChart(PieChart chart) {
+    private void setupInventoryStatusChart(PieChart chart, int[] statusCounts) {
+        if (statusCounts == null || statusCounts.length < 4) {
+            statusCounts = new int[]{0, 0, 0, 0};
+        }
+        int inStock = statusCounts[0];
+        int low = statusCounts[1];
+        int critical = statusCounts[2];
+        int out = statusCounts[3];
+
         List<PieEntry> entries = new ArrayList<>();
-        entries.add(new PieEntry(45f, "In Stock"));
-        entries.add(new PieEntry(30f, "Low Stock"));
-        entries.add(new PieEntry(15f, "Critical"));
-        entries.add(new PieEntry(10f, "Out of Stock"));
+        if (inStock > 0) entries.add(new PieEntry(inStock, "In Stock"));
+        if (low > 0) entries.add(new PieEntry(low, "Low"));
+        if (critical > 0) entries.add(new PieEntry(critical, "Critical"));
+        if (out > 0) entries.add(new PieEntry(out, "Out of Stock"));
+        if (entries.isEmpty()) {
+            entries.add(new PieEntry(1f, "No Data"));
+        }
+
         PieDataSet dataSet = new PieDataSet(entries, "Inventory Status");
-        int[] colors = new int[] {
+        int[] colors = new int[]{
                 Color.parseColor("#95E1D3"),
                 Color.parseColor("#FFD93D"),
                 Color.parseColor("#FF6B6B"),
@@ -182,6 +216,7 @@ public class DashboardViewModel extends AndroidViewModel {
             chart.getLegend().setEnabled(true);
             chart.setTouchEnabled(true);
             chart.setDrawEntryLabels(true);
+            chart.getDescription().setText("Inventory health overview");
             chart.invalidate();
         });
     }

@@ -2,16 +2,13 @@ package com.app.SalesInventory;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -66,18 +63,6 @@ public class CategoryManagementActivity extends BaseActivity  {
         });
     }
 
-    private void setupTypeSpinner(Spinner spinner, String currentType) {
-        List<String> types = new ArrayList<>();
-        types.add("Inventory");
-        types.add("Menu");
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, types);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
-        int index = 0;
-        if (currentType != null && currentType.equalsIgnoreCase("Menu")) index = 1;
-        spinner.setSelection(index);
-    }
-
     private void showAddCategoryDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_category, null);
@@ -85,12 +70,10 @@ public class CategoryManagementActivity extends BaseActivity  {
         TextView tvTitle = dialogView.findViewById(R.id.tvDialogTitle);
         EditText etCategoryName = dialogView.findViewById(R.id.etCategoryName);
         EditText etDescription = dialogView.findViewById(R.id.etDescription);
-        Spinner spinnerType = dialogView.findViewById(R.id.spinnerCategoryType);
         SwitchMaterial switchActive = dialogView.findViewById(R.id.switchActive);
         Button btnSave = dialogView.findViewById(R.id.btnSave);
         Button btnCancel = dialogView.findViewById(R.id.btnCancel);
         tvTitle.setText("Add Category");
-        setupTypeSpinner(spinnerType, "Inventory");
         switchActive.setChecked(true);
         AlertDialog dialog = builder.create();
         btnSave.setOnClickListener(v -> {
@@ -100,14 +83,13 @@ public class CategoryManagementActivity extends BaseActivity  {
                 etCategoryName.setError("Category name is required");
                 return;
             }
-            String selectedType = spinnerType.getSelectedItem() != null ? spinnerType.getSelectedItem().toString() : "Inventory";
             String categoryId = categoryRef.push().getKey();
             if (categoryId == null) {
                 Toast.makeText(this, "Error generating ID", Toast.LENGTH_SHORT).show();
                 return;
             }
             Category category = new Category(categoryId, name, description, System.currentTimeMillis());
-            category.setType(selectedType);
+            category.setType("Inventory");
             category.setActive(switchActive.isChecked());
             categoryRef.child(categoryId).setValue(category)
                     .addOnSuccessListener(aVoid -> {
@@ -127,14 +109,12 @@ public class CategoryManagementActivity extends BaseActivity  {
         TextView tvTitle = dialogView.findViewById(R.id.tvDialogTitle);
         EditText etCategoryName = dialogView.findViewById(R.id.etCategoryName);
         EditText etDescription = dialogView.findViewById(R.id.etDescription);
-        Spinner spinnerType = dialogView.findViewById(R.id.spinnerCategoryType);
         SwitchMaterial switchActive = dialogView.findViewById(R.id.switchActive);
         Button btnSave = dialogView.findViewById(R.id.btnSave);
         Button btnCancel = dialogView.findViewById(R.id.btnCancel);
         tvTitle.setText("Edit Category");
         etCategoryName.setText(category.getCategoryName());
         etDescription.setText(category.getDescription());
-        setupTypeSpinner(spinnerType, category.getType() != null ? category.getType() : "Inventory");
         switchActive.setChecked(category.isActive());
         btnSave.setText("Update");
         AlertDialog dialog = builder.create();
@@ -145,10 +125,8 @@ public class CategoryManagementActivity extends BaseActivity  {
                 etCategoryName.setError("Category name is required");
                 return;
             }
-            String selectedType = spinnerType.getSelectedItem() != null ? spinnerType.getSelectedItem().toString() : "Inventory";
             category.setCategoryName(name);
             category.setDescription(description);
-            category.setType(selectedType);
             category.setActive(switchActive.isChecked());
             categoryRef.child(category.getCategoryId()).setValue(category)
                     .addOnSuccessListener(aVoid -> {

@@ -36,4 +36,7 @@ public interface ProductDao {
 
     @Query("DELETE FROM products WHERE localId = :localId")
     void deleteByLocalId(long localId);
+
+    @Query("SELECT * FROM products")
+    List<ProductEntity> getAllProductsSync();
 }

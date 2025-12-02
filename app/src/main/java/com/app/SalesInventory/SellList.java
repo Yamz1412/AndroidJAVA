@@ -50,7 +50,10 @@ public class SellList extends BaseActivity {
             if (products != null) {
                 productList.clear();
                 for (Product p : products) {
-                    if (p != null && p.isActive() && p.getQuantity() > 0) {
+                    if (p == null) continue;
+                    if (!p.isActive()) continue;
+                    String type = p.getProductType() == null ? "" : p.getProductType();
+                    if ("Menu".equalsIgnoreCase(type)) {
                         productList.add(p);
                     }
                 }
@@ -148,8 +151,8 @@ public class SellList extends BaseActivity {
                 Toast.makeText(this, "Invalid quantity", Toast.LENGTH_SHORT).show();
                 return;
             }
-            if (q <= 0 || q > product.getQuantity()) {
-                Toast.makeText(this, "Quantity must be between 1 and " + product.getQuantity(), Toast.LENGTH_SHORT).show();
+            if (q <= 0) {
+                Toast.makeText(this, "Quantity must be at least 1", Toast.LENGTH_SHORT).show();
                 return;
             }
 

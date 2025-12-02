@@ -1,6 +1,7 @@
 package com.app.SalesInventory;
 
 import androidx.annotation.NonNull;
+
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -12,6 +13,7 @@ import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
@@ -19,8 +21,12 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.SetOptions;
 
-public class SignInActivity extends BaseActivity  {
+import java.util.HashMap;
+import java.util.Map;
+
+public class SignInActivity extends BaseActivity {
 
     EditText Email, Password;
     ProgressBar progressBar;
@@ -56,7 +62,7 @@ public class SignInActivity extends BaseActivity  {
                     FirebaseUser reloaded = fAuth.getCurrentUser();
                     if (reloaded != null && reloaded.isEmailVerified()) {
                         String uid = reloaded.getUid();
-                        AuthManager.getInstance().getFirestore().collection("users").document(uid).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                        fStore.collection("users").document(uid).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
                             @Override
                             public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                                 progressBar.setVisibility(View.INVISIBLE);
@@ -66,6 +72,7 @@ public class SignInActivity extends BaseActivity  {
                                     if (approved == null) approved = false;
                                     if (approved) {
                                         applyRemoteTheme(doc);
+                                        updateUserProfileFromAuth(reloaded, doc);
                                         FirestoreManager.getInstance().updateCurrentUserId(uid);
                                         Intent intent = new Intent(getApplicationContext(), MainActivity.class);
                                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -101,6 +108,41 @@ public class SignInActivity extends BaseActivity  {
         }
     }
 
+    private void updateUserProfileFromAuth(FirebaseUser user, DocumentSnapshot existingDoc) {
+        if (user == null) return;
+        String uid = user.getUid();
+        String email = user.getEmail() != null ? user.getEmail() : "";
+        String name = user.getDisplayName() != null ? user.getDisplayName() : "";
+        String phone = user.getPhoneNumber() != null ? user.getPhoneNumber() : "";
+        String photoUrl = user.getPhotoUrl() != null ? user.getPhotoUrl().toString() : "";
+
+        Map<String, Object> data = new HashMap<>();
+        if (!email.isEmpty()) {
+            data.put("email", email);
+            data.put("Email", email);
+        }
+        if (!name.isEmpty()) {
+            data.put("name", name);
+            data.put("Name", name);
+        }
+        if (!phone.isEmpty()) {
+            data.put("phone", phone);
+            data.put("Phone", phone);
+        }
+        if (!photoUrl.isEmpty()) {
+            data.put("photoUrl", photoUrl);
+        } else if (existingDoc != null) {
+            String existingPhoto = existingDoc.getString("photoUrl");
+            if (existingPhoto != null && !existingPhoto.isEmpty()) {
+                data.put("photoUrl", existingPhoto);
+            }
+        }
+
+        if (!data.isEmpty()) {
+            fStore.collection("users").document(uid).set(data, SetOptions.merge());
+        }
+    }
+
     public void SingInB(View view) {
         String email = Email.getText().toString().trim();
         String password = Password.getText().toString().trim();
@@ -130,7 +172,7 @@ public class SignInActivity extends BaseActivity  {
                                 FirebaseUser reloaded = fAuth.getCurrentUser();
                                 if (reloaded != null && reloaded.isEmailVerified()) {
                                     String uid = reloaded.getUid();
-                                    AuthManager.getInstance().getFirestore().collection("users").document(uid).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+                                    fStore.collection("users").document(uid).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
                                         @Override
                                         public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                                             if (task.isSuccessful() && task.getResult() != null && task.getResult().exists()) {
@@ -144,6 +186,7 @@ public class SignInActivity extends BaseActivity  {
                                                         prefs.edit().putBoolean(KEY_REMEMBER, false).apply();
                                                     }
                                                     applyRemoteTheme(doc);
+                                                    updateUserProfileFromAuth(reloaded, doc);
                                                     FirestoreManager.getInstance().updateCurrentUserId(uid);
                                                     Intent intent = new Intent(getApplicationContext(), MainActivity.class);
                                                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -156,7 +199,16 @@ public class SignInActivity extends BaseActivity  {
                                                     finish();
                                                 }
                                             } else {
-                                                Toast.makeText(SignInActivity.this, "User profile missing", Toast.LENGTH_LONG).show();
+                                                FirebaseUser u = fAuth.getCurrentUser();
+                                                if (u != null) {
+                                                    updateUserProfileFromAuth(u, null);
+                                                    Toast.makeText(SignInActivity.this, "Profile initialized, please wait for admin approval", Toast.LENGTH_LONG).show();
+                                                    Intent intent = new Intent(getApplicationContext(), WaitingVerificationActivity.class);
+                                                    startActivity(intent);
+                                                    finish();
+                                                } else {
+                                                    Toast.makeText(SignInActivity.this, "User profile missing", Toast.LENGTH_LONG).show();
+                                                }
                                             }
                                         }
                                     });

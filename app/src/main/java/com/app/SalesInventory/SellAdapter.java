@@ -12,7 +12,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -61,9 +60,8 @@ public class SellAdapter extends RecyclerView.Adapter<SellAdapter.VH> {
                     .centerCrop()
                     .into(holder.productImage);
         } else if (imagePath != null && !imagePath.isEmpty()) {
-            File f = new File(imagePath);
             Glide.with(context)
-                    .load(f.exists() ? f : null)
+                    .load(android.net.Uri.parse(imagePath))
                     .placeholder(R.drawable.ic_image_placeholder)
                     .error(R.drawable.ic_image_placeholder)
                     .centerCrop()

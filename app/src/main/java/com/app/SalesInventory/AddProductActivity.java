@@ -1,14 +1,32 @@
 package com.app.SalesInventory;
 
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
+
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -18,6 +36,7 @@ import java.util.List;
 import java.util.Locale;
 
 public class AddProductActivity extends BaseActivity {
+    private ImageButton btnAddPhoto;
     private TextInputEditText productNameET;
     private TextInputEditText sellingPriceET;
     private TextInputEditText quantityET;
@@ -28,11 +47,19 @@ public class AddProductActivity extends BaseActivity {
     private Button addBtn;
     private Button cancelBtn;
     private Spinner categorySpinner;
+    private RadioGroup rgProductType;
+    private RadioButton rbInventory;
+    private RadioButton rbMenu;
     private LinearLayout layoutBuyingUnitQtyCritical;
     private ProductRepository productRepository;
     private AuthManager authManager;
     private SimpleDateFormat expiryFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
     private List<Category> categoryList = new ArrayList<>();
+    private DatabaseReference categoryRef;
+    private String selectedImagePath;
+
+    private ActivityResultLauncher<Intent> imagePickerLauncher;
+    private ActivityResultLauncher<String> permissionLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +72,7 @@ public class AddProductActivity extends BaseActivity {
         android.util.Log.d("AddProductActivity", "uid=" + uid + " approved=" + approved);
 
         productRepository = SalesInventoryApplication.getProductRepository();
+        btnAddPhoto = findViewById(R.id.btnAddPhoto);
         productNameET = findViewById(R.id.productNameET);
         sellingPriceET = findViewById(R.id.sellingPriceET);
         quantityET = findViewById(R.id.quantityET);
@@ -55,67 +83,107 @@ public class AddProductActivity extends BaseActivity {
         addBtn = findViewById(R.id.addBtn);
         cancelBtn = findViewById(R.id.cancelBtn);
         categorySpinner = findViewById(R.id.categorySpinner);
+        rgProductType = findViewById(R.id.rgProductType);
+        rbInventory = findViewById(R.id.rbInventory);
+        rbMenu = findViewById(R.id.rbMenu);
         layoutBuyingUnitQtyCritical = findViewById(R.id.layout_buying_unit_qty_critical);
 
+        rbInventory.setChecked(true);
+
+        categoryRef = FirebaseDatabase.getInstance().getReference("Categories");
         setupCategorySpinner();
+        setupImagePickers();
 
-        categorySpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                updateLayoutForSelectedCategory();
-            }
-
-            @Override
-            public void onNothingSelected(android.widget.AdapterView<?> parent) { }
-        });
+        rgProductType.setOnCheckedChangeListener((group, checkedId) -> updateLayoutForSelectedType());
 
         addBtn.setOnClickListener(v -> attemptAdd());
         cancelBtn.setOnClickListener(v -> finish());
+        btnAddPhoto.setOnClickListener(v -> tryPickImage());
+
+        updateLayoutForSelectedType();
     }
 
     private void setupCategorySpinner() {
-        CategoryRepository categoryRepository = CategoryRepository.getInstance(getApplication());
-        categoryRepository.getAllCategories(new CategoryRepository.CategoryListCallback() {
+        categoryRef.addValueEventListener(new ValueEventListener() {
             @Override
-            public void onSuccess(List<Category> categories) {
-                runOnUiThread(() -> {
-                    categoryList.clear();
-                    if (categories != null) {
-                        for (Category c : categories) {
-                            if (c.isActive()) {
-                                categoryList.add(c);
-                            }
-                        }
+            public void onDataChange(DataSnapshot snapshot) {
+                List<Category> temp = new ArrayList<>();
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    Category c = child.getValue(Category.class);
+                    if (c != null && c.getCategoryName() != null && !c.getCategoryName().isEmpty() && c.isActive()) {
+                        temp.add(c);
                     }
-                    List<String> names = new ArrayList<>();
-                    for (Category c : categoryList) {
-                        names.add(c.getCategoryName());
-                    }
-                    ArrayAdapter<String> adapter = new ArrayAdapter<>(AddProductActivity.this, android.R.layout.simple_spinner_item, names);
-                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                    categorySpinner.setAdapter(adapter);
-                    updateLayoutForSelectedCategory();
-                });
+                }
+                categoryList.clear();
+                categoryList.addAll(temp);
+
+                List<String> names = new ArrayList<>();
+                for (Category c : categoryList) {
+                    names.add(c.getCategoryName());
+                }
+
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(AddProductActivity.this, R.layout.spinner_item, names);
+                adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
+                categorySpinner.setAdapter(adapter);
             }
 
             @Override
-            public void onError(String error) {
-                runOnUiThread(() ->
-                        Toast.makeText(AddProductActivity.this, "Error loading categories: " + error, Toast.LENGTH_SHORT).show());
+            public void onCancelled(DatabaseError error) {
+                Toast.makeText(AddProductActivity.this, "Error loading categories: " + error.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    private void updateLayoutForSelectedCategory() {
-        int index = categorySpinner.getSelectedItemPosition();
-        if (index < 0 || index >= categoryList.size()) {
-            layoutBuyingUnitQtyCritical.setVisibility(View.VISIBLE);
-            return;
+    private void setupImagePickers() {
+        imagePickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        Uri uri = result.getData().getData();
+                        if (uri != null) {
+                            selectedImagePath = uri.toString();
+                            btnAddPhoto.setImageURI(uri);
+                        }
+                    }
+                });
+
+        permissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                isGranted -> {
+                    if (isGranted) {
+                        openImagePicker();
+                    } else {
+                        Toast.makeText(this, "Permission required to select image", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private void tryPickImage() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            openImagePicker();
+        } else {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                openImagePicker();
+            } else {
+                permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE);
+            }
         }
-        Category selected = categoryList.get(index);
-        String type = selected.getType();
-        if ("Menu".equalsIgnoreCase(type)) {
+    }
+
+    private void openImagePicker() {
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        intent.setType("image/*");
+        imagePickerLauncher.launch(intent);
+    }
+
+    private void updateLayoutForSelectedType() {
+        int checkedId = rgProductType.getCheckedRadioButtonId();
+        if (checkedId == R.id.rbMenu) {
             layoutBuyingUnitQtyCritical.setVisibility(View.GONE);
+            quantityET.setText("");
+            costPriceET.setText("");
+            minStockET.setText("");
+            unitET.setText("");
         } else {
             layoutBuyingUnitQtyCritical.setVisibility(View.VISIBLE);
         }
@@ -128,6 +196,12 @@ public class AddProductActivity extends BaseActivity {
             return;
         }
 
+        int checkedId = rgProductType.getCheckedRadioButtonId();
+        if (checkedId != R.id.rbInventory && checkedId != R.id.rbMenu) {
+            Toast.makeText(this, "Please select a product type", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         int catIndex = categorySpinner.getSelectedItemPosition();
         if (catIndex < 0 || catIndex >= categoryList.size()) {
             Toast.makeText(this, "Please select a category", Toast.LENGTH_SHORT).show();
@@ -136,8 +210,7 @@ public class AddProductActivity extends BaseActivity {
         Category selectedCategory = categoryList.get(catIndex);
         String categoryName = selectedCategory.getCategoryName();
         String categoryId = selectedCategory.getCategoryId();
-        String categoryType = selectedCategory.getType();
-        String productType = "Menu".equalsIgnoreCase(categoryType) ? "Menu" : "Raw";
+        String productType = checkedId == R.id.rbMenu ? "Menu" : "Raw";
 
         double sellingPrice = 0;
         double costPrice = 0;
@@ -207,8 +280,9 @@ public class AddProductActivity extends BaseActivity {
         p.setAddedBy("");
         p.setActive(true);
         p.setBarcode("");
+        p.setImagePath(selectedImagePath);
 
-        productRepository.addProduct(p, new ProductRepository.OnProductAddedListener() {
+        productRepository.addProduct(p, selectedImagePath, new ProductRepository.OnProductAddedListener() {
             @Override
             public void onProductAdded(String productId) {
                 runOnUiThread(() -> {

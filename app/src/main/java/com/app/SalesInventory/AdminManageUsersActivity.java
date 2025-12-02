@@ -30,6 +30,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 public class AdminManageUsersActivity extends BaseActivity {
     private static final String TAG = "AdminManageUsers";
     private RecyclerView rvPending;
@@ -118,7 +120,7 @@ public class AdminManageUsersActivity extends BaseActivity {
         progressBar.setVisibility(View.VISIBLE);
         usersListener = fStore.collection("users").addSnapshotListener(new EventListener<QuerySnapshot>() {
             @Override
-            public void onEvent(QuerySnapshot snapshot, FirebaseFirestoreException e) {
+            public void onEvent(@Nullable QuerySnapshot snapshot, @Nullable FirebaseFirestoreException e) {
                 runOnUiThread(() -> {
                     progressBar.setVisibility(View.GONE);
                     pendingUsers.clear();

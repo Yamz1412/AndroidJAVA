@@ -120,6 +120,7 @@ public class ProductRepository {
             e.imagePath = imagePath;
             e.imageUrl = null;
             long localId = productDao.insert(e);
+            checkExpiryForEntity(e);
             SyncScheduler.enqueueImmediateSync(application.getApplicationContext());
             listener.onProductAdded("local:" + localId);
         });
@@ -152,6 +153,8 @@ public class ProductRepository {
                 existing.criticalLevel = product.getCriticalLevel();
                 existing.ceilingLevel = product.getCeilingLevel();
                 existing.unit = product.getUnit();
+                existing.dateAdded = product.getDateAdded();
+                existing.expiryDate = product.getExpiryDate();
                 existing.lastUpdated = now;
                 existing.syncState = "PENDING";
                 if (imagePath != null) {
@@ -159,6 +162,7 @@ public class ProductRepository {
                     existing.imageUrl = null;
                 }
                 productDao.update(existing);
+                checkExpiryForEntity(existing);
             } else {
                 ProductEntity e = mapProductToEntity(product);
                 e.lastUpdated = now;
@@ -166,6 +170,7 @@ public class ProductRepository {
                 e.imagePath = imagePath;
                 e.imageUrl = null;
                 productDao.insert(e);
+                checkExpiryForEntity(e);
             }
             SyncScheduler.enqueueImmediateSync(application.getApplicationContext());
             listener.onProductUpdated();
@@ -218,6 +223,8 @@ public class ProductRepository {
                     createLowStockAlert(existing);
                 }
 
+                checkExpiryForEntity(existing);
+
                 listener.onProductUpdated();
             } else {
                 listener.onError("Product not found locally");
@@ -234,14 +241,9 @@ public class ProductRepository {
 
     private void createLowStockAlert(ProductEntity e) {
         if (alertRepository == null) return;
-        Alert alert = new Alert();
-        alert.setProductId(e.productId);
-        alert.setType("LOW_STOCK");
         String name = e.productName == null ? "" : e.productName;
-        alert.setMessage("Low stock for " + name + " (Qty: " + e.quantity + ")");
-        alert.setRead(false);
-        alert.setTimestamp(System.currentTimeMillis());
-        alertRepository.addAlert(alert, new AlertRepository.OnAlertAddedListener() {
+        String message = "Low stock for " + name + " (Qty: " + e.quantity + ")";
+        alertRepository.addAlertIfNotExists(e.productId, "LOW_STOCK", message, System.currentTimeMillis(), new AlertRepository.OnAlertAddedListener() {
             @Override
             public void onAlertAdded(String alertId) {
             }
@@ -253,19 +255,62 @@ public class ProductRepository {
 
     private void createCriticalStockAlert(ProductEntity e) {
         if (alertRepository == null) return;
-        Alert alert = new Alert();
-        alert.setProductId(e.productId);
-        alert.setType("CRITICAL_STOCK");
         String name = e.productName == null ? "" : e.productName;
-        alert.setMessage("Critical stock for " + name + " (Qty: " + e.quantity + ")");
-        alert.setRead(false);
-        alert.setTimestamp(System.currentTimeMillis());
-        alertRepository.addAlert(alert, new AlertRepository.OnAlertAddedListener() {
+        String message = "Critical stock for " + name + " (Qty: " + e.quantity + ")";
+        alertRepository.addAlertIfNotExists(e.productId, "CRITICAL_STOCK", message, System.currentTimeMillis(), new AlertRepository.OnAlertAddedListener() {
             @Override
             public void onAlertAdded(String alertId) {
             }
             @Override
             public void onError(String error) {
+            }
+        });
+    }
+
+    private void createExpiryAlert(ProductEntity e, String type) {
+        if (alertRepository == null) return;
+        String name = e.productName == null ? "" : e.productName;
+        String message;
+        if ("EXPIRY_7_DAYS".equals(type)) {
+            message = "Product \"" + name + "\" will expire in 7 days or less.";
+        } else if ("EXPIRY_3_DAYS".equals(type)) {
+            message = "Product \"" + name + "\" will expire in 3 days or less.";
+        } else if ("EXPIRED".equals(type)) {
+            message = "Product \"" + name + "\" has expired.";
+        } else {
+            message = "Expiry alert for " + name + ".";
+        }
+        alertRepository.addAlertIfNotExists(e.productId, type, message, System.currentTimeMillis(), new AlertRepository.OnAlertAddedListener() {
+            @Override
+            public void onAlertAdded(String alertId) {
+            }
+            @Override
+            public void onError(String error) {
+            }
+        });
+    }
+
+    private void checkExpiryForEntity(ProductEntity e) {
+        if (e == null) return;
+        if (e.expiryDate <= 0) return;
+        long now = System.currentTimeMillis();
+        long diffMillis = e.expiryDate - now;
+        long days = diffMillis / (24L * 60L * 60L * 1000L);
+        if (diffMillis <= 0) {
+            createExpiryAlert(e, "EXPIRED");
+        } else if (days <= 3) {
+            createExpiryAlert(e, "EXPIRY_3_DAYS");
+        } else if (days <= 7) {
+            createExpiryAlert(e, "EXPIRY_7_DAYS");
+        }
+    }
+
+    public void runExpirySweep() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<ProductEntity> entities = productDao.getAllProductsSync();
+            if (entities == null) return;
+            for (ProductEntity e : entities) {
+                checkExpiryForEntity(e);
             }
         });
     }
@@ -304,9 +349,11 @@ public class ProductRepository {
                 existing.addedBy = p.getAddedBy();
                 existing.isActive = p.isActive();
                 existing.imageUrl = p.getImageUrl();
+                existing.expiryDate = p.getExpiryDate();
                 existing.lastUpdated = now;
                 existing.syncState = "SYNCED";
                 productDao.update(existing);
+                checkExpiryForEntity(existing);
             } else {
                 ProductEntity e = new ProductEntity();
                 e.productId = p.getProductId();
@@ -327,15 +374,17 @@ public class ProductRepository {
                 e.addedBy = p.getAddedBy();
                 e.isActive = p.isActive();
                 e.imageUrl = p.getImageUrl();
+                e.expiryDate = p.getExpiryDate();
                 e.lastUpdated = now;
                 e.syncState = "SYNCED";
                 productDao.insert(e);
+                checkExpiryForEntity(e);
             }
         });
     }
 
     private ProductEntity mapProductToEntity(Product p) {
-        return new ProductEntity(
+        ProductEntity e = new ProductEntity(
                 p.getProductName(),
                 p.getCategoryId(),
                 p.getCategoryName(),
@@ -357,6 +406,8 @@ public class ProductRepository {
                 p.getImagePath(),
                 p.getImageUrl()
         );
+        e.expiryDate = p.getExpiryDate();
+        return e;
     }
 
     private Product mapEntityToProduct(ProductEntity e) {
@@ -381,6 +432,7 @@ public class ProductRepository {
         p.setActive(e.isActive);
         p.setImagePath(e.imagePath);
         p.setImageUrl(e.imageUrl);
+        p.setExpiryDate(e.expiryDate);
         return p;
     }
 

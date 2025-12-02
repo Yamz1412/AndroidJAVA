@@ -17,6 +17,9 @@ import java.util.List;
 import java.util.Set;
 
 public class Inventory extends BaseActivity {
+    public static final String EXTRA_SHOW_LOW_STOCK_ONLY = "showLowStockOnly";
+    public static final String EXTRA_SHOW_NEAR_EXPIRY_ONLY = "showNearExpiryOnly";
+
     private RecyclerView productsRecyclerView;
     private SearchView searchView;
     private TextView emptyStateTV;
@@ -34,7 +37,8 @@ public class Inventory extends BaseActivity {
     private String currentCategoryFilter = "All";
     private CriticalStockNotifier criticalNotifier;
     private ProductRepository.OnCriticalStockListener criticalListener;
-
+    private boolean showLowStockOnly = false;
+    private boolean showNearExpiryOnly = false;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,6 +55,9 @@ public class Inventory extends BaseActivity {
         btnAdjustmentHistory = findViewById(R.id.btn_adjustment_history);
         btnAdjustmentSummary = findViewById(R.id.btn_adjustment_summary);
         spinnerCategoryFilter = findViewById(R.id.spinnerCategoryFilter);
+
+        showLowStockOnly = getIntent().getBooleanExtra(EXTRA_SHOW_LOW_STOCK_ONLY, false);
+        showNearExpiryOnly = getIntent().getBooleanExtra(EXTRA_SHOW_NEAR_EXPIRY_ONLY, false);
 
         productAdapter = new ProductAdapter(filteredProducts, this);
         productsRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
@@ -125,6 +132,8 @@ public class Inventory extends BaseActivity {
     private void setupCategoryFilterSpinner() {
         Set<String> categories = new HashSet<>();
         for (Product p : allProducts) {
+            String type = p.getProductType() == null ? "" : p.getProductType();
+            if ("Menu".equalsIgnoreCase(type)) continue;
             String c = p.getCategoryName();
             if (c != null && !c.isEmpty()) {
                 categories.add(c);
@@ -165,6 +174,10 @@ public class Inventory extends BaseActivity {
 
         filteredProducts.clear();
         for (Product p : allProducts) {
+            if (p == null || !p.isActive()) continue;
+            String type = p.getProductType() == null ? "" : p.getProductType();
+            if ("Menu".equalsIgnoreCase(type)) continue;
+
             boolean matchesSearch =
                     q.isEmpty()
                             || p.getProductName().toLowerCase().contains(q)
@@ -174,9 +187,30 @@ public class Inventory extends BaseActivity {
                     "All".equalsIgnoreCase(cat)
                             || (p.getCategoryName() != null && p.getCategoryName().equalsIgnoreCase(cat));
 
-            if (matchesSearch && matchesCategory) {
-                filteredProducts.add(p);
+            if (!matchesSearch || !matchesCategory) continue;
+
+            if (showLowStockOnly) {
+                int qty = p.getQuantity();
+                int critical = p.getCriticalLevel();
+                int reorder = p.getReorderLevel();
+                boolean isCritical = critical > 0 && qty <= critical;
+                boolean isLow = !isCritical && reorder > 0 && qty <= reorder;
+                if (!isCritical && !isLow) continue;
             }
+
+            if (showNearExpiryOnly) {
+                long expiry = p.getExpiryDate();
+                if (expiry <= 0) continue;
+                long now = System.currentTimeMillis();
+                long diffMillis = expiry - now;
+                long days = diffMillis / (24L * 60L * 60L * 1000L);
+                if (diffMillis <= 0) {
+                } else if (days > 7) {
+                    continue;
+                }
+            }
+
+            filteredProducts.add(p);
         }
         productAdapter.updateProducts(filteredProducts);
         updateEmptyState();
@@ -184,7 +218,13 @@ public class Inventory extends BaseActivity {
 
     private void updateEmptyState() {
         if (filteredProducts.isEmpty()) {
-            emptyStateTV.setText("No products found");
+            if (showLowStockOnly) {
+                emptyStateTV.setText("No low stock products found");
+            } else if (showNearExpiryOnly) {
+                emptyStateTV.setText("No near-expiry products found");
+            } else {
+                emptyStateTV.setText("No products found");
+            }
             emptyStateTV.setVisibility(View.VISIBLE);
         } else {
             emptyStateTV.setVisibility(View.GONE);

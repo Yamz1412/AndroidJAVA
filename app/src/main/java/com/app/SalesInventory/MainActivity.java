@@ -54,12 +54,20 @@ public class MainActivity extends BaseActivity {
     private ImageButton btnProfile;
     private SwipeRefreshLayout swipeRefresh;
     private String currentUserRole = "Unknown";
+    private ProductRepository productRepository;
+    private CardView cardNearExpiry;
+    private TextView tvNearExpiryCount;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        productRepository = SalesInventoryApplication.getProductRepository();
+        productRepository.runExpirySweep();
+
         initializeUI();
+        setupNearExpiryCard();
         setupViewModel();
         setupCharts();
         setupClickListeners();
@@ -98,6 +106,42 @@ public class MainActivity extends BaseActivity {
         authManager = AuthManager.getInstance();
         btnSettings = findViewById(R.id.btn_settings);
         btnProfile = findViewById(R.id.btn_profile);
+        cardNearExpiry = findViewById(R.id.card_near_expiry);
+        tvNearExpiryCount = findViewById(R.id.tv_near_expiry_count);
+    }
+
+    private void setupNearExpiryCard() {
+        if (cardNearExpiry == null || tvNearExpiryCount == null) return;
+        cardNearExpiry.setVisibility(View.GONE);
+
+        productRepository.getAllProducts().observe(this, products -> {
+            int count = 0;
+            if (products != null) {
+                long now = System.currentTimeMillis();
+                for (Product p : products) {
+                    if (p == null || !p.isActive()) continue;
+                    long expiry = p.getExpiryDate();
+                    if (expiry <= 0) continue;
+                    long diffMillis = expiry - now;
+                    long days = diffMillis / (24L * 60L * 60L * 1000L);
+                    if (diffMillis <= 0 || days <= 7) {
+                        count++;
+                    }
+                }
+            }
+            if (count > 0) {
+                tvNearExpiryCount.setText(String.valueOf(count));
+                cardNearExpiry.setVisibility(View.VISIBLE);
+            } else {
+                cardNearExpiry.setVisibility(View.GONE);
+            }
+        });
+
+        cardNearExpiry.setOnClickListener(v -> {
+            Intent i = new Intent(MainActivity.this, Inventory.class);
+            i.putExtra(Inventory.EXTRA_SHOW_NEAR_EXPIRY_ONLY, true);
+            startActivity(i);
+        });
     }
 
     private void setupViewModel() {
@@ -182,9 +226,13 @@ public class MainActivity extends BaseActivity {
             cardInventoryValue.setOnClickListener(v ->
                     Toast.makeText(MainActivity.this, "Inventory Value", Toast.LENGTH_SHORT).show());
 
-        if (cardLowStock != null)
-            cardLowStock.setOnClickListener(v ->
-                    Toast.makeText(MainActivity.this, "Low Stock Items", Toast.LENGTH_SHORT).show());
+        if (cardLowStock != null) {
+            cardLowStock.setOnClickListener(v -> {
+                Intent i = new Intent(MainActivity.this, Inventory.class);
+                i.putExtra(Inventory.EXTRA_SHOW_LOW_STOCK_ONLY, true);
+                startActivity(i);
+            });
+        }
 
         if (cardPendingOrders != null)
             cardPendingOrders.setOnClickListener(v ->

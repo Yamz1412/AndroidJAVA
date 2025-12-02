@@ -2,10 +2,8 @@ package com.app.SalesInventory;
 
 import android.app.Dialog;
 import android.content.Context;
-import android.graphics.Color;
 import android.view.View;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 
 public class ThemeColorPicker extends Dialog {
     private static final String TAG = "ThemeColorPicker";
@@ -23,9 +21,6 @@ public class ThemeColorPicker extends Dialog {
         setupDialog();
     }
 
-    /**
-     * Setup color picker dialog
-     */
     private void setupDialog() {
         setTitle("Select Color");
 
@@ -33,7 +28,6 @@ public class ThemeColorPicker extends Dialog {
         colorGrid.setOrientation(LinearLayout.VERTICAL);
         colorGrid.setPadding(16, 16, 16, 16);
 
-        // Common colors
         int[] colors = {
                 0xFF2196F3, 0xFF1976D2, 0xFF006994, 0xFF2E7D32,
                 0xFFE65100, 0xFF6A1B9A, 0xFFD32F2F, 0xFFFFA000,

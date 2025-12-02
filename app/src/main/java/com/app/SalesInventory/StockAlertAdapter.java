@@ -44,23 +44,35 @@ public class StockAlertAdapter extends RecyclerView.Adapter<StockAlertAdapter.Vi
         String dateText = dateFormat.format(new Date(alert.getCreatedAt()));
         holder.tvAlertDate.setText(dateText);
 
-        // Set background and text color based on alert type
-        switch (alert.getAlertType()) {
-            case "CRITICAL":
-                holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.errorRed));
-                holder.tvAlertType.setText("🔴 CRITICAL");
-                holder.tvAlertType.setTextColor(context.getResources().getColor(R.color.white));
-                break;
-            case "LOW":
-                holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.warningYellow));
-                holder.tvAlertType.setText("🟡 LOW STOCK");
-                holder.tvAlertType.setTextColor(context.getResources().getColor(R.color.textColorPrimary));
-                break;
-            case "OVERSTOCK":
-                holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.successGreen));
-                holder.tvAlertType.setText("🟢 OVERSTOCK");
-                holder.tvAlertType.setTextColor(context.getResources().getColor(R.color.white));
-                break;
+        String type = alert.getAlertType();
+        if ("CRITICAL".equals(type)) {
+            holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.errorRed));
+            holder.tvAlertType.setText("🔴 CRITICAL");
+            holder.tvAlertType.setTextColor(context.getResources().getColor(R.color.white));
+        } else if ("LOW".equals(type)) {
+            holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.warningYellow));
+            holder.tvAlertType.setText("🟡 LOW STOCK");
+            holder.tvAlertType.setTextColor(context.getResources().getColor(R.color.textColorPrimary));
+        } else if ("OVERSTOCK".equals(type)) {
+            holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.successGreen));
+            holder.tvAlertType.setText("🟢 OVERSTOCK");
+            holder.tvAlertType.setTextColor(context.getResources().getColor(R.color.white));
+        } else if ("EXPIRY_7_DAYS".equals(type)) {
+            holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.warningYellow));
+            holder.tvAlertType.setText("🟡 EXPIRY 7 DAYS");
+            holder.tvAlertType.setTextColor(context.getResources().getColor(R.color.textColorPrimary));
+        } else if ("EXPIRY_3_DAYS".equals(type)) {
+            holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.warningYellow));
+            holder.tvAlertType.setText("🟠 EXPIRY 3 DAYS");
+            holder.tvAlertType.setTextColor(context.getResources().getColor(R.color.textColorPrimary));
+        } else if ("EXPIRED".equals(type)) {
+            holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.errorRed));
+            holder.tvAlertType.setText("⚫ EXPIRED");
+            holder.tvAlertType.setTextColor(context.getResources().getColor(R.color.white));
+        } else {
+            holder.itemView.setBackgroundColor(context.getResources().getColor(R.color.errorRed));
+            holder.tvAlertType.setText(type);
+            holder.tvAlertType.setTextColor(context.getResources().getColor(R.color.white));
         }
 
         holder.tvAlertMessage.setTextColor(context.getResources().getColor(R.color.white));

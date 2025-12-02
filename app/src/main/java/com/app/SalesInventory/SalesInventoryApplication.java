@@ -2,6 +2,7 @@ package com.app.SalesInventory;
 
 import android.app.Application;
 import android.content.Context;
+
 import com.google.firebase.FirebaseApp;
 
 public class SalesInventoryApplication extends Application {
@@ -27,7 +28,8 @@ public class SalesInventoryApplication extends Application {
         FirebaseApp.initializeApp(this);
         productRepository = ProductRepository.getInstance(this);
         alertRepository = AlertRepository.getInstance(this);
-        salesRepository = SalesRepository .getInstance(this);
+        salesRepository = SalesRepository.getInstance(this);
+        productRepository.runExpirySweep();
     }
 
     public static SalesInventoryApplication getInstance() {

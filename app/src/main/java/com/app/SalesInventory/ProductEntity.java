@@ -29,6 +29,7 @@ public class ProductEntity {
     public String syncState;
     public String imagePath;
     public String imageUrl;
+    public long expiryDate;
 
     public ProductEntity() {}
 
@@ -54,5 +55,6 @@ public class ProductEntity {
         this.syncState = syncState;
         this.imagePath = imagePath;
         this.imageUrl = imageUrl;
+        this.expiryDate = 0L;
     }
 }

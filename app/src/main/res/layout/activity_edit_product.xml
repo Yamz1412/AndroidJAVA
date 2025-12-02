@@ -20,6 +20,16 @@
             android:textColor="@color/colorPrimary"
             android:layout_marginBottom="20dp"/>
 
+        <ImageButton
+            android:id="@+id/btnEditPhoto"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@android:color/transparent"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_image_placeholder"
+            android:layout_marginBottom="16dp"/>
+
         <com.google.android.material.textfield.TextInputLayout
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
@@ -142,7 +152,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="15dp"
-            android:layout_marginBottom="30dp"
             android:textColorHint="#757575"
             app:hintTextColor="@color/colorPrimary"
             app:boxStrokeColor="@color/colorPrimary"
@@ -155,6 +164,27 @@
                 android:inputType="number"
                 android:textColor="#000000"
                 android:hint="Reorder Level"/>
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="15dp"
+            android:layout_marginBottom="30dp"
+            android:textColorHint="#757575"
+            app:hintTextColor="@color/colorPrimary"
+            app:boxStrokeColor="@color/colorPrimary"
+            app:helperText="Optional, DD/MM/YYYY">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/expiryDateET"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="false"
+                android:clickable="true"
+                android:textColor="#000000"
+                android:hint="Expiry Date (DD/MM/YYYY)"/>
         </com.google.android.material.textfield.TextInputLayout>
 
         <Button

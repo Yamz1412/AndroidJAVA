@@ -9,6 +9,7 @@ import android.view.Window;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 public class ThemeManager {
@@ -21,6 +22,10 @@ public class ThemeManager {
     private static ThemeManager instance;
     private SharedPreferences sharedPreferences;
     private Context context;
+
+    public interface ThemeLoadCallback {
+        void onLoaded();
+    }
 
     public enum Theme {
         LIGHT("light", 0xFF2196F3, 0xFF1976D2, 0xFFFF5722),
@@ -66,6 +71,26 @@ public class ThemeManager {
         return Theme.LIGHT;
     }
 
+    private void saveLocalTheme(Theme chosen, int primaryColor, int secondaryColor, int accentColor) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString(SELECTED_THEME, chosen.name);
+        editor.putInt(PRIMARY_COLOR, primaryColor);
+        editor.putInt(SECONDARY_COLOR, secondaryColor);
+        editor.putInt(ACCENT_COLOR, accentColor);
+        editor.apply();
+    }
+
+    private void saveRemoteTheme(String themeName, int primaryColor, int secondaryColor, int accentColor) {
+        String uid = AuthManager.getInstance().getCurrentUserId();
+        if (uid != null) {
+            FirebaseFirestore.getInstance().collection("users").document(uid)
+                    .update("themeName", themeName,
+                            "primaryColor", primaryColor,
+                            "secondaryColor", secondaryColor,
+                            "accentColor", accentColor);
+        }
+    }
+
     public void setCurrentTheme(String themeName) {
         Theme chosen = Theme.LIGHT;
         for (Theme t : Theme.values()) {
@@ -74,20 +99,8 @@ public class ThemeManager {
                 break;
             }
         }
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putString(SELECTED_THEME, chosen.name);
-        editor.putInt(PRIMARY_COLOR, chosen.primaryColor);
-        editor.putInt(SECONDARY_COLOR, chosen.secondaryColor);
-        editor.putInt(ACCENT_COLOR, chosen.accentColor);
-        editor.apply();
-        String uid = AuthManager.getInstance().getCurrentUserId();
-        if (uid != null) {
-            FirebaseFirestore.getInstance().collection("users").document(uid)
-                    .update("themeName", chosen.name,
-                            "primaryColor", chosen.primaryColor,
-                            "secondaryColor", chosen.secondaryColor,
-                            "accentColor", chosen.accentColor);
-        }
+        saveLocalTheme(chosen, chosen.primaryColor, chosen.secondaryColor, chosen.accentColor);
+        saveRemoteTheme(chosen.name, chosen.primaryColor, chosen.secondaryColor, chosen.accentColor);
     }
 
     public void setCurrentThemeLocalOnly(String themeName) {
@@ -98,12 +111,7 @@ public class ThemeManager {
                 break;
             }
         }
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putString(SELECTED_THEME, chosen.name);
-        editor.putInt(PRIMARY_COLOR, chosen.primaryColor);
-        editor.putInt(SECONDARY_COLOR, chosen.secondaryColor);
-        editor.putInt(ACCENT_COLOR, chosen.accentColor);
-        editor.apply();
+        saveLocalTheme(chosen, chosen.primaryColor, chosen.secondaryColor, chosen.accentColor);
     }
 
     public void applyTheme(AppCompatActivity activity) {
@@ -136,20 +144,8 @@ public class ThemeManager {
     }
 
     public void setCustomColors(int primaryColor, int secondaryColor, int accentColor) {
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putString(SELECTED_THEME, Theme.CUSTOM.name);
-        editor.putInt(PRIMARY_COLOR, primaryColor);
-        editor.putInt(SECONDARY_COLOR, secondaryColor);
-        editor.putInt(ACCENT_COLOR, accentColor);
-        editor.apply();
-        String uid = AuthManager.getInstance().getCurrentUserId();
-        if (uid != null) {
-            FirebaseFirestore.getInstance().collection("users").document(uid)
-                    .update("themeName", Theme.CUSTOM.name,
-                            "primaryColor", primaryColor,
-                            "secondaryColor", secondaryColor,
-                            "accentColor", accentColor);
-        }
+        saveLocalTheme(Theme.CUSTOM, primaryColor, secondaryColor, accentColor);
+        saveRemoteTheme(Theme.CUSTOM.name, primaryColor, secondaryColor, accentColor);
     }
 
     public Theme[] getAvailableThemes() {
@@ -194,5 +190,41 @@ public class ThemeManager {
         double b = android.graphics.Color.blue(color) / 255.0;
         double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
         return luminance > 0.5;
+    }
+
+    public void loadUserThemeFromRemote(ThemeLoadCallback callback) {
+        String uid = AuthManager.getInstance().getCurrentUserId();
+        if (uid == null) {
+            if (callback != null) callback.onLoaded();
+            return;
+        }
+        FirebaseFirestore.getInstance().collection("users").document(uid)
+                .get()
+                .addOnSuccessListener(doc -> {
+                    applyRemoteThemeDoc(doc);
+                    if (callback != null) callback.onLoaded();
+                })
+                .addOnFailureListener(e -> {
+                    if (callback != null) callback.onLoaded();
+                });
+    }
+
+    private void applyRemoteThemeDoc(DocumentSnapshot doc) {
+        if (doc == null || !doc.exists()) return;
+        String themeName = doc.contains("themeName") ? doc.getString("themeName") : null;
+        int primary = doc.contains("primaryColor") ? doc.getLong("primaryColor").intValue() : Theme.LIGHT.primaryColor;
+        int secondary = doc.contains("secondaryColor") ? doc.getLong("secondaryColor").intValue() : Theme.LIGHT.secondaryColor;
+        int accent = doc.contains("accentColor") ? doc.getLong("accentColor").intValue() : Theme.LIGHT.accentColor;
+        if (themeName == null || themeName.isEmpty()) {
+            themeName = Theme.LIGHT.name;
+        }
+        Theme chosen = Theme.LIGHT;
+        for (Theme t : Theme.values()) {
+            if (t.name.equals(themeName)) {
+                chosen = t;
+                break;
+            }
+        }
+        saveLocalTheme(chosen, primary, secondary, accent);
     }
 }

@@ -373,10 +373,61 @@
 
                 </androidx.cardview.widget.CardView>
 
-                <Space
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/card_near_expiry"
                     android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
+                    android:layout_height="120dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardBackgroundColor="@android:color/white"
+                    app:cardElevation="4dp"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:padding="16dp"
+                        android:gravity="center_vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="8dp">
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:src="@drawable/ic_warning"
+                                app:tint="@color/warning_primary" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Near Expiry"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_primary"
+                                android:layout_marginStart="8dp" />
+
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tv_near_expiry_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/warning_primary" />
+
+                    </LinearLayout>
+
+                </androidx.cardview.widget.CardView>
+
             </LinearLayout>
 
             <TextView
@@ -493,8 +544,6 @@
                 android:textColor="?attr/colorOnBackground"
                 android:layout_marginTop="20dp"
                 android:layout_marginBottom="12dp" />
-
-            <!-- Charts and recent activity (unchanged from your original) -->
 
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"

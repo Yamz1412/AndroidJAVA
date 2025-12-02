@@ -7,6 +7,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.Query;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -95,6 +96,37 @@ public class AlertRepository {
             Log.e(TAG, "Error adding alert", e);
             listener.onError(e.getMessage());
         });
+    }
+
+    public void addAlertIfNotExists(String productId, String type, String message, long timestamp, OnAlertAddedListener listener) {
+        if (!firestoreManager.isUserAuthenticated()) {
+            listener.onError("User not authenticated");
+            return;
+        }
+        firestoreManager.getDb()
+                .collection(firestoreManager.getUserAlertsPath())
+                .whereEqualTo("productId", productId)
+                .whereEqualTo("type", type)
+                .whereEqualTo("read", false)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    if (snapshot != null && !snapshot.isEmpty()) {
+                        listener.onAlertAdded(snapshot.getDocuments().get(0).getId());
+                    } else {
+                        Alert alert = new Alert();
+                        alert.setProductId(productId);
+                        alert.setType(type);
+                        alert.setMessage(message);
+                        alert.setRead(false);
+                        alert.setTimestamp(timestamp);
+                        addAlert(alert, listener);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error checking existing alerts", e);
+                    listener.onError(e.getMessage());
+                });
     }
 
     public void markAlertAsRead(String alertId, OnAlertUpdatedListener listener) {

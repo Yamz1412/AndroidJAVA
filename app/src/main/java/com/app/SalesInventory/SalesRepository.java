@@ -1,16 +1,15 @@
 package com.app.SalesInventory;
 
+import android.app.Application;
+
 import androidx.lifecycle.MutableLiveData;
 
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.firestore. DocumentReference;
-import com.google. firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.DocumentReference;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import android.app.Application;
 
 public class SalesRepository {
     private static SalesRepository instance;
@@ -19,6 +18,7 @@ public class SalesRepository {
     private MutableLiveData<Double> totalSalesToday;
     private MutableLiveData<Double> totalMonthlyRevenue;
     private MutableLiveData<List<Sales>> recentSales;
+    private Application application;
 
     private SalesRepository() {
         firestoreManager = FirestoreManager.getInstance();
@@ -34,6 +34,7 @@ public class SalesRepository {
 
     private SalesRepository(Application application) {
         this();
+        this.application = application;
     }
 
     public static synchronized SalesRepository getInstance() {
@@ -51,81 +52,92 @@ public class SalesRepository {
     }
 
     private void loadAllSales() {
-        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath()). orderBy("timestamp", com.google.firebase.firestore. Query.Direction.DESCENDING). addSnapshotListener((snapshot, error) -> {
-            if (error != null) {
-                return;
-            }
-            if (snapshot != null) {
-                List<Sales> salesList = new ArrayList<>();
-                for (com.google.firebase.firestore. DocumentSnapshot document : snapshot.getDocuments()) {
-                    Sales sale = document. toObject(Sales.class);
-                    if (sale != null) {
-                        sale.setId(document.getId());
-                        salesList.add(sale);
+        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath())
+                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .addSnapshotListener((snapshot, error) -> {
+                    if (error != null) {
+                        return;
                     }
-                }
-                allSales.postValue(salesList);
-            }
-        });
+                    if (snapshot != null) {
+                        List<Sales> salesList = new ArrayList<>();
+                        for (com.google.firebase.firestore.DocumentSnapshot document : snapshot.getDocuments()) {
+                            Sales sale = document.toObject(Sales.class);
+                            if (sale != null) {
+                                sale.setId(document.getId());
+                                salesList.add(sale);
+                            }
+                        }
+                        allSales.postValue(salesList);
+                    }
+                });
     }
 
     private void loadTodaySales() {
         long startOfDay = getStartOfDay();
         long endOfDay = getEndOfDay();
-        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath()).whereGreaterThanOrEqualTo("timestamp", startOfDay).whereLessThanOrEqualTo("timestamp", endOfDay).addSnapshotListener((snapshot, error) -> {
-            if (error != null) {
-                return;
-            }
-            double total = 0.0;
-            if (snapshot != null) {
-                for (com.google.firebase.firestore.DocumentSnapshot document : snapshot.getDocuments()) {
-                    Sales sale = document.toObject(Sales.class);
-                    if (sale != null) {
-                        total += sale.getTotalPrice();
+        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath())
+                .whereGreaterThanOrEqualTo("timestamp", startOfDay)
+                .whereLessThanOrEqualTo("timestamp", endOfDay)
+                .addSnapshotListener((snapshot, error) -> {
+                    if (error != null) {
+                        return;
                     }
-                }
-            }
-            totalSalesToday.postValue(total);
-        });
+                    double total = 0.0;
+                    if (snapshot != null) {
+                        for (com.google.firebase.firestore.DocumentSnapshot document : snapshot.getDocuments()) {
+                            Sales sale = document.toObject(Sales.class);
+                            if (sale != null) {
+                                total += sale.getTotalPrice();
+                            }
+                        }
+                    }
+                    totalSalesToday.postValue(total);
+                });
     }
 
     private void loadMonthlySales() {
         long startOfMonth = getStartOfMonth();
         long endOfMonth = getEndOfMonth();
-        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath()).whereGreaterThanOrEqualTo("timestamp", startOfMonth).whereLessThanOrEqualTo("timestamp", endOfMonth).addSnapshotListener((snapshot, error) -> {
-            if (error != null) {
-                return;
-            }
-            double total = 0.0;
-            if (snapshot != null) {
-                for (com.google.firebase.firestore.DocumentSnapshot document : snapshot. getDocuments()) {
-                    Sales sale = document.toObject(Sales.class);
-                    if (sale != null) {
-                        total += sale.getTotalPrice();
+        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath())
+                .whereGreaterThanOrEqualTo("timestamp", startOfMonth)
+                .whereLessThanOrEqualTo("timestamp", endOfMonth)
+                .addSnapshotListener((snapshot, error) -> {
+                    if (error != null) {
+                        return;
                     }
-                }
-            }
-            totalMonthlyRevenue.postValue(total);
-        });
+                    double total = 0.0;
+                    if (snapshot != null) {
+                        for (com.google.firebase.firestore.DocumentSnapshot document : snapshot.getDocuments()) {
+                            Sales sale = document.toObject(Sales.class);
+                            if (sale != null) {
+                                total += sale.getTotalPrice();
+                            }
+                        }
+                    }
+                    totalMonthlyRevenue.postValue(total);
+                });
     }
 
     private void loadRecentSales() {
-        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath()).orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING).limit(10).addSnapshotListener((snapshot, error) -> {
-            if (error != null) {
-                return;
-            }
-            if (snapshot != null) {
-                List<Sales> salesList = new ArrayList<>();
-                for (com.google.firebase. firestore.DocumentSnapshot document : snapshot.getDocuments()) {
-                    Sales sale = document.toObject(Sales.class);
-                    if (sale != null) {
-                        sale.setId(document.getId());
-                        salesList.add(sale);
+        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath())
+                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(10)
+                .addSnapshotListener((snapshot, error) -> {
+                    if (error != null) {
+                        return;
                     }
-                }
-                recentSales.postValue(salesList);
-            }
-        });
+                    if (snapshot != null) {
+                        List<Sales> salesList = new ArrayList<>();
+                        for (com.google.firebase.firestore.DocumentSnapshot document : snapshot.getDocuments()) {
+                            Sales sale = document.toObject(Sales.class);
+                            if (sale != null) {
+                                sale.setId(document.getId());
+                                salesList.add(sale);
+                            }
+                        }
+                        recentSales.postValue(salesList);
+                    }
+                });
     }
 
     public MutableLiveData<List<Sales>> getAllSales() {
@@ -167,6 +179,13 @@ public class SalesRepository {
         map.put("price", sale.getPrice());
         map.put("totalPrice", sale.getTotalPrice());
         map.put("paymentMethod", sale.getPaymentMethod() != null ? sale.getPaymentMethod() : "");
+        map.put("deliveryType", sale.getDeliveryType() != null ? sale.getDeliveryType() : "");
+        map.put("deliveryStatus", sale.getDeliveryStatus() != null ? sale.getDeliveryStatus() : "");
+        map.put("deliveryDate", sale.getDeliveryDate() > 0 ? sale.getDeliveryDate() : 0L);
+        map.put("deliveryName", sale.getDeliveryName() != null ? sale.getDeliveryName() : "");
+        map.put("deliveryPhone", sale.getDeliveryPhone() != null ? sale.getDeliveryPhone() : "");
+        map.put("deliveryAddress", sale.getDeliveryAddress() != null ? sale.getDeliveryAddress() : "");
+        map.put("deliveryPaymentMethod", sale.getDeliveryPaymentMethod() != null ? sale.getDeliveryPaymentMethod() : "");
         map.put("date", sale.getDate() > 0 ? sale.getDate() : System.currentTimeMillis());
         map.put("timestamp", firestoreManager.getServerTimestamp());
         firestoreManager.getDb().collection(firestoreManager.getUserSalesPath()).add(map)
@@ -180,50 +199,58 @@ public class SalesRepository {
     }
 
     public void deleteSale(String saleId, OnSalesDeletedListener listener) {
-        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath()).document(saleId).delete().addOnSuccessListener(aVoid -> {
-            listener. onSaleDeleted();
-        }).addOnFailureListener(e -> {
-            listener.onError(e.getMessage() != null ?  e.getMessage() : "Failed to delete sale");
-        });
-    }
-
-    private long getStartOfDay() {
-        java.util.Calendar calendar = java.util.Calendar. getInstance();
-        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0);
-        calendar.set(java.util.Calendar.MINUTE, 0);
-        calendar.set(java.util.Calendar. SECOND, 0);
-        return calendar.getTimeInMillis();
+        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath())
+                .document(saleId)
+                .delete()
+                .addOnSuccessListener(aVoid -> listener.onSaleDeleted())
+                .addOnFailureListener(e -> listener.onError(e.getMessage() != null ? e.getMessage() : "Failed to delete sale"));
     }
 
     public void updateSaleDeliveryStatus(Sales sale) {
         if (sale == null || sale.getId() == null) return;
-        DatabaseReference ref = FirebaseDatabase.getInstance().getReference("Sales").child(sale.getId());
-        ref.child("deliveryStatus").setValue(sale.getDeliveryStatus());
-        ref.child("deliveryDate").setValue(sale.getDeliveryDate());
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("deliveryStatus", sale.getDeliveryStatus());
+        updates.put("deliveryDate", sale.getDeliveryDate());
+        updates.put("deliveryType", sale.getDeliveryType());
+        updates.put("deliveryName", sale.getDeliveryName());
+        updates.put("deliveryPhone", sale.getDeliveryPhone());
+        updates.put("deliveryAddress", sale.getDeliveryAddress());
+        updates.put("deliveryPaymentMethod", sale.getDeliveryPaymentMethod());
+        firestoreManager.getDb().collection(firestoreManager.getUserSalesPath())
+                .document(sale.getId())
+                .update(updates);
+    }
+
+    private long getStartOfDay() {
+        java.util.Calendar calendar = java.util.Calendar.getInstance();
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        calendar.set(java.util.Calendar.MINUTE, 0);
+        calendar.set(java.util.Calendar.SECOND, 0);
+        return calendar.getTimeInMillis();
     }
 
     private long getEndOfDay() {
-        java.util.Calendar calendar = java. util.Calendar.getInstance();
-        calendar.set(java.util. Calendar.HOUR_OF_DAY, 23);
+        java.util.Calendar calendar = java.util.Calendar.getInstance();
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 23);
         calendar.set(java.util.Calendar.MINUTE, 59);
         calendar.set(java.util.Calendar.SECOND, 59);
         return calendar.getTimeInMillis();
     }
 
     private long getStartOfMonth() {
-        java.util.Calendar calendar = java.util.Calendar. getInstance();
+        java.util.Calendar calendar = java.util.Calendar.getInstance();
         calendar.set(java.util.Calendar.DAY_OF_MONTH, 1);
         calendar.set(java.util.Calendar.HOUR_OF_DAY, 0);
         calendar.set(java.util.Calendar.MINUTE, 0);
-        calendar.set(java.util.Calendar. SECOND, 0);
+        calendar.set(java.util.Calendar.SECOND, 0);
         return calendar.getTimeInMillis();
     }
 
     private long getEndOfMonth() {
-        java.util.Calendar calendar = java. util.Calendar.getInstance();
-        calendar.set(java.util. Calendar.DAY_OF_MONTH, calendar.getActualMaximum(java.util.Calendar.DAY_OF_MONTH));
+        java.util.Calendar calendar = java.util.Calendar.getInstance();
+        calendar.set(java.util.Calendar.DAY_OF_MONTH, calendar.getActualMaximum(java.util.Calendar.DAY_OF_MONTH));
         calendar.set(java.util.Calendar.HOUR_OF_DAY, 23);
-        calendar.set(java. util.Calendar.MINUTE, 59);
+        calendar.set(java.util.Calendar.MINUTE, 59);
         calendar.set(java.util.Calendar.SECOND, 59);
         return calendar.getTimeInMillis();
     }

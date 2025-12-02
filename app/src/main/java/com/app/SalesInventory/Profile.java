@@ -1,7 +1,5 @@
 package com.app.SalesInventory;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -20,7 +18,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 
 import javax.annotation.Nullable;
 
-public class Profile extends BaseActivity  {
+public class Profile extends BaseActivity {
 
     TextView ProfilName, ProfilEmail, ProfilPhone, ProfilNameInfo;
     Button button, btnLogout;
@@ -64,14 +62,14 @@ public class Profile extends BaseActivity  {
                 if (name == null) name = documentSnapshot.getString("Name");
                 String phone = documentSnapshot.getString("phone");
                 if (phone == null) phone = documentSnapshot.getString("Phone");
-                String photoUrl = documentSnapshot.getString("photoUrl");
+                String photoUrlFromProfile = documentSnapshot.getString("photoUrl");
 
                 ProfilEmail.setText(email != null ? email : "");
                 ProfilName.setText(name != null ? name : "");
                 ProfilPhone.setText(phone != null ? phone : "");
                 ProfilNameInfo.setText(name != null ? name : "");
 
-                loadAvatar(photoUrl);
+                loadAvatar(photoUrlFromProfile);
             }
         });
 
@@ -95,9 +93,15 @@ public class Profile extends BaseActivity  {
     private void loadAvatar(String photoUrlFromProfile) {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         Uri authPhoto = user != null ? user.getPhotoUrl() : null;
-        String url = photoUrlFromProfile != null && !photoUrlFromProfile.isEmpty()
-                ? photoUrlFromProfile
-                : authPhoto != null ? authPhoto.toString() : null;
+
+        String url;
+        if (authPhoto != null && authPhoto.toString().length() > 0) {
+            url = authPhoto.toString();
+        } else if (photoUrlFromProfile != null && !photoUrlFromProfile.isEmpty()) {
+            url = photoUrlFromProfile;
+        } else {
+            url = null;
+        }
 
         if (url != null && !url.isEmpty()) {
             Glide.with(this)

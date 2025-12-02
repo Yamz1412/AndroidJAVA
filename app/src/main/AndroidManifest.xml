@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
+
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
@@ -26,8 +27,8 @@
 
         <activity
             android:name=".FirstActivity"
-            android:windowSoftInputMode="adjustResize|stateHidden"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize|stateHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -35,95 +36,123 @@
         </activity>
 
         <activity
+            android:name=".CategoryManagementActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
+
+        <activity
             android:name=".DeliveryReportActivity"
+            android:exported="false"
             android:windowSoftInputMode="stateHidden|adjustResize" />
 
         <activity
             android:name=".ReceivingReportActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".WaitingVerificationActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".SignInActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".SignUpActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".resetPassWord"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".Conditions"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".MainActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".Profile"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".EditProfil"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".SellList"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".sellProduct"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".InventoryReportsActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".Inventory"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".AddProductActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".DeleteProduct"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".AdminManageUsersActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".SettingsActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".PurchaseOrderListActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".CreatePurchaseOrderActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".PurchaseOrderDetailActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".BatchStockOperationActivity"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
             android:name=".Reports"
+            android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <provider

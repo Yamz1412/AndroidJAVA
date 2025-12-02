@@ -11,12 +11,13 @@ import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.SetOptions;
-import java.util.HashMap;
-import java.util.Map;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.SetOptions;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,11 +29,15 @@ public class SettingsActivity extends BaseActivity {
     private Button resetThemeBtn, applyBtn;
     private LinearLayout colorPreviewLayout;
     private TextView primaryColorTV, secondaryColorTV, accentColorTV;
+    private Button btnBackup, btnRestore;
 
     private ThemeManager themeManager;
     private int currentPrimary, currentSecondary, currentAccent;
     private ThemeManager.Theme[] allThemes;
     private ThemeManager.Theme selectedTheme;
+
+    private ActivityResultLauncher<String> backupLauncher;
+    private ActivityResultLauncher<String> restoreLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,6 +45,7 @@ public class SettingsActivity extends BaseActivity {
         setContentView(R.layout.activity_settings);
         themeManager = ThemeManager.getInstance(this);
         initializeUI();
+        initBackupLaunchers();
         loadCurrentTheme();
         setupListeners();
     }
@@ -55,7 +61,37 @@ public class SettingsActivity extends BaseActivity {
         primaryColorTV = findViewById(R.id.primaryColorTV);
         secondaryColorTV = findViewById(R.id.secondaryColorTV);
         accentColorTV = findViewById(R.id.accentColorTV);
+        btnBackup = findViewById(R.id.btnBackup);
+        btnRestore = findViewById(R.id.btnRestore);
         setupThemeSpinner();
+    }
+
+    private void initBackupLaunchers() {
+        backupLauncher = registerForActivityResult(
+                new ActivityResultContracts.CreateDocument("application/octet-stream"),
+                uri -> {
+                    if (uri != null) {
+                        boolean ok = BackupManager.exportDatabase(this, uri);
+                        if (ok) {
+                            Toast.makeText(this, "Backup completed", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(this, "Backup failed", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+
+        restoreLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                uri -> {
+                    if (uri != null) {
+                        boolean ok = BackupManager.importDatabase(this, uri);
+                        if (ok) {
+                            Toast.makeText(this, "Restore completed. Restart app to apply.", Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(this, "Restore failed", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
     }
 
     private void setupThemeSpinner() {
@@ -100,9 +136,8 @@ public class SettingsActivity extends BaseActivity {
                 currentPrimary = selectedTheme.primaryColor;
                 currentSecondary = selectedTheme.secondaryColor;
                 currentAccent = selectedTheme.accentColor;
-                themeManager.setCurrentTheme(selectedTheme.name);
                 updateColorPreview();
-                Log.d(TAG, "Theme selected: " + selectedTheme.name);
+                Log.d(TAG, "Theme selected (preview): " + selectedTheme.name);
             }
 
             @Override
@@ -134,6 +169,14 @@ public class SettingsActivity extends BaseActivity {
         });
 
         applyBtn.setOnClickListener(v -> applyTheme());
+
+        btnBackup.setOnClickListener(v -> {
+            backupLauncher.launch("sales_inventory_backup.db");
+        });
+
+        btnRestore.setOnClickListener(v -> {
+            restoreLauncher.launch("*/*");
+        });
     }
 
     private void openColorPicker(ThemeColorPicker.OnColorSelectedListener listener) {

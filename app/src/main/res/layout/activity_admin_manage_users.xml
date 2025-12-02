@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="12dp"
-    android:background="@android:color/white"
+    android:background="?android:colorBackground"
     tools:context=".AdminManageUsersActivity">
 
     <TextView
@@ -15,7 +15,7 @@
         android:text="Manage Users"
         android:textSize="18sp"
         android:textStyle="bold"
-        android:textColor="@android:color/black" />
+        android:textColor="?attr/colorOnBackground" />
 
     <ProgressBar
         android:id="@+id/progressBarManage"
@@ -33,8 +33,8 @@
         android:textStyle="bold"
         android:padding="10dp"
         android:layout_marginTop="12dp"
-        android:background="@color/colorPrimary"
-        android:textColor="@color/white" />
+        android:background="?attr/colorPrimary"
+        android:textColor="?attr/colorOnPrimary" />
 
     <TextView
         android:id="@+id/tvNoPending"
@@ -42,7 +42,7 @@
         android:layout_height="wrap_content"
         android:text="No pending accounts"
         android:textSize="14sp"
-        android:textColor="@color/text_secondary"
+        android:textColor="?attr/colorOnBackground"
         android:padding="10dp"
         android:visibility="gone"
         android:layout_marginTop="8dp" />
@@ -69,8 +69,8 @@
         android:textStyle="bold"
         android:padding="10dp"
         android:layout_marginTop="4dp"
-        android:background="#EEEEEE"
-        android:textColor="@color/black" />
+        android:background="?attr/colorPrimary"
+        android:textColor="?attr/colorOnPrimary" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvManageUsers"

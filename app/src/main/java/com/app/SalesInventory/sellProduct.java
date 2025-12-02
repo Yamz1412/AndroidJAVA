@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 
-public class sellProduct extends BaseActivity  {
+public class sellProduct extends BaseActivity {
 
     private static final int REQUEST_CAMERA_PERMISSION = 3001;
 

@@ -1,28 +1,19 @@
 package com.app.SalesInventory;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.os.Bundle;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class StockAlertsActivity extends BaseActivity  {
+public class StockAlertsActivity extends BaseActivity {
 
     private RecyclerView recyclerViewAlerts;
     private ProgressBar progressBar;
@@ -30,7 +21,7 @@ public class StockAlertsActivity extends BaseActivity  {
     private LinearLayout llAlertStats;
     private StockAlertAdapter adapter;
     private List<StockAlert> alertList;
-    private DatabaseReference productRef;
+    private AlertRepository alertRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,9 +46,8 @@ public class StockAlertsActivity extends BaseActivity  {
         tvLowStockCount = findViewById(R.id.tvLowStockCount);
         tvOverstockCount = findViewById(R.id.tvOverstockCount);
         llAlertStats = findViewById(R.id.llAlertStats);
-
         alertList = new ArrayList<>();
-        productRef = FirebaseDatabase.getInstance().getReference("Product");
+        alertRepository = AlertRepository.getInstance(getApplication());
     }
 
     private void setupRecyclerView() {
@@ -70,107 +60,64 @@ public class StockAlertsActivity extends BaseActivity  {
         progressBar.setVisibility(View.VISIBLE);
         tvNoAlerts.setVisibility(View.GONE);
         llAlertStats.setVisibility(View.GONE);
+        recyclerViewAlerts.setVisibility(View.GONE);
 
-        productRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                alertList.clear();
-                int criticalCount = 0;
-                int lowStockCount = 0;
-                int overstockCount = 0;
+        alertRepository.getAllAlerts().observe(this, alerts -> {
+            alertList.clear();
+            int criticalCount = 0;
+            int lowStockCount = 0;
+            int overstockCount = 0;
 
-                for (DataSnapshot dataSnapshot : snapshot.getChildren()) {
-                    Product product = dataSnapshot.getValue(Product.class);
-                    if (product != null && product.isActive()) {
-                        StockAlert alert = null;
-
-                        // Check for critical stock
-                        if (product.isCriticalStock()) {
-                            alert = new StockAlert(
-                                    product.getProductId(),
-                                    product.getProductId(),
-                                    product.getProductName(),
-                                    product.getQuantity(),
-                                    product.getReorderLevel(),
-                                    product.getCriticalLevel(),
-                                    product.getCeilingLevel(),
-                                    "CRITICAL",
-                                    product.getCategoryName(),
-                                    System.currentTimeMillis(),
-                                    false
-                            );
-                            criticalCount++;
-                        }
-                        // Check for low stock
-                        else if (product.isLowStock()) {
-                            alert = new StockAlert(
-                                    product.getProductId(),
-                                    product.getProductId(),
-                                    product.getProductName(),
-                                    product.getQuantity(),
-                                    product.getReorderLevel(),
-                                    product.getCriticalLevel(),
-                                    product.getCeilingLevel(),
-                                    "LOW",
-                                    product.getCategoryName(),
-                                    System.currentTimeMillis(),
-                                    false
-                            );
-                            lowStockCount++;
-                        }
-                        // Check for overstock
-                        else if (product.isOverstock()) {
-                            alert = new StockAlert(
-                                    product.getProductId(),
-                                    product.getProductId(),
-                                    product.getProductName(),
-                                    product.getQuantity(),
-                                    product.getReorderLevel(),
-                                    product.getCriticalLevel(),
-                                    product.getCeilingLevel(),
-                                    "OVERSTOCK",
-                                    product.getCategoryName(),
-                                    System.currentTimeMillis(),
-                                    false
-                            );
-                            overstockCount++;
-                        }
-
-                        if (alert != null) {
-                            alertList.add(alert);
-                        }
+            if (alerts != null) {
+                for (Alert a : alerts) {
+                    if (a == null) continue;
+                    String type = a.getType() == null ? "" : a.getType();
+                    if (!"CRITICAL_STOCK".equals(type) && !"LOW_STOCK".equals(type) && !"OVERSTOCK".equals(type)) {
+                        continue;
                     }
-                }
 
-                // Sort by severity (Critical first, then Low, then Overstock)
-                Collections.sort(alertList, (a, b) -> Integer.compare(b.getSeverity(), a.getSeverity()));
+                    StockAlert sa = new StockAlert();
+                    sa.setAlertId(a.getId());
+                    sa.setProductId(a.getProductId());
+                    sa.setProductName(a.getMessage());
+                    sa.setCurrentQuantity(0);
+                    sa.setReorderLevel(0);
+                    sa.setCriticalLevel(0);
+                    sa.setCeilingLevel(0);
+                    sa.setCategory("");
+                    sa.setCreatedAt(a.getTimestamp());
+                    sa.setResolved(a.isRead());
 
-                progressBar.setVisibility(View.GONE);
+                    if ("CRITICAL_STOCK".equals(type)) {
+                        sa.setAlertType("CRITICAL");
+                        criticalCount++;
+                    } else if ("LOW_STOCK".equals(type)) {
+                        sa.setAlertType("LOW");
+                        lowStockCount++;
+                    } else if ("OVERSTOCK".equals(type)) {
+                        sa.setAlertType("OVERSTOCK");
+                        overstockCount++;
+                    }
 
-                if (alertList.isEmpty()) {
-                    tvNoAlerts.setVisibility(View.VISIBLE);
-                    recyclerViewAlerts.setVisibility(View.GONE);
-                    llAlertStats.setVisibility(View.GONE);
-                } else {
-                    tvNoAlerts.setVisibility(View.GONE);
-                    recyclerViewAlerts.setVisibility(View.VISIBLE);
-                    llAlertStats.setVisibility(View.VISIBLE);
-
-                    // Update stats
-                    tvCriticalCount.setText(String.valueOf(criticalCount));
-                    tvLowStockCount.setText(String.valueOf(lowStockCount));
-                    tvOverstockCount.setText(String.valueOf(overstockCount));
-
-                    adapter.notifyDataSetChanged();
+                    alertList.add(sa);
                 }
             }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                progressBar.setVisibility(View.GONE);
-                Toast.makeText(StockAlertsActivity.this,
-                        "Error loading alerts: " + error.getMessage(),
-                        Toast.LENGTH_SHORT).show();
+            Collections.sort(alertList, (a1, a2) -> Integer.compare(a2.getSeverity(), a1.getSeverity()));
+            progressBar.setVisibility(View.GONE);
+
+            if (alertList.isEmpty()) {
+                tvNoAlerts.setVisibility(View.VISIBLE);
+                recyclerViewAlerts.setVisibility(View.GONE);
+                llAlertStats.setVisibility(View.GONE);
+            } else {
+                tvNoAlerts.setVisibility(View.GONE);
+                recyclerViewAlerts.setVisibility(View.VISIBLE);
+                llAlertStats.setVisibility(View.VISIBLE);
+                tvCriticalCount.setText(String.valueOf(criticalCount));
+                tvLowStockCount.setText(String.valueOf(lowStockCount));
+                tvOverstockCount.setText(String.valueOf(overstockCount));
+                adapter.notifyDataSetChanged();
             }
         });
     }

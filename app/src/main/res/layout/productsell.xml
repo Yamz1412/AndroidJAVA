@@ -7,7 +7,7 @@
     android:layout_marginVertical="5dp"
     app:cardCornerRadius="8dp"
     app:cardElevation="3dp"
-    app:cardBackgroundColor="#FFFFFF">
+    app:cardBackgroundColor="?android:colorBackground">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -31,12 +31,11 @@
             android:text="Product Name"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="#333333"
+            android:textColor="?attr/colorOnBackground"
             app:layout_constraintStart_toEndOf="@id/ivProductImageSell"
             app:layout_constraintEnd_toStartOf="@+id/BadgeSell"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintHorizontal_weight="1"/>
-
 
         <TextView
             android:id="@+id/CodeTVS11"
@@ -45,7 +44,8 @@
             android:layout_marginStart="56dp"
             android:layout_marginTop="8dp"
             android:text="CODE-001"
-            android:textColor="#757575"
+            android:textColor="?attr/colorOnBackground"
+            android:alpha="0.7"
             android:textSize="12sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/NameTVS11" />
@@ -57,8 +57,8 @@
             android:text="SELL"
             android:textSize="10sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            android:background="@color/colorPrimary"
+            android:textColor="?attr/colorOnPrimary"
+            android:background="?attr/colorPrimary"
             android:paddingHorizontal="8dp"
             android:paddingVertical="2dp"
             app:layout_constraintEnd_toEndOf="parent"
@@ -68,7 +68,8 @@
             android:id="@+id/divider"
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="#EEEEEE"
+            android:background="?attr/colorOnBackground"
+            android:alpha="0.1"
             android:layout_marginTop="10dp"
             app:layout_constraintTop_toBottomOf="@+id/CodeTVS11"/>
 
@@ -90,7 +91,8 @@
                     android:layout_height="wrap_content"
                     android:text="In Stock"
                     android:textSize="10sp"
-                    android:textColor="#757575"/>
+                    android:textColor="?attr/colorOnBackground"
+                    android:alpha="0.7"/>
 
                 <TextView
                     android:id="@+id/AmountTVS11"
@@ -114,7 +116,8 @@
                     android:layout_height="wrap_content"
                     android:text="Unit Price"
                     android:textSize="10sp"
-                    android:textColor="#757575"/>
+                    android:textColor="?attr/colorOnBackground"
+                    android:alpha="0.7"/>
 
                 <TextView
                     android:id="@+id/SellPriceTVS11"
@@ -123,7 +126,7 @@
                     android:text="P 150.00"
                     android:textStyle="bold"
                     android:textSize="18sp"
-                    android:textColor="#4CAF50"/>
+                    android:textColor="@color/successGreen"/>
             </LinearLayout>
         </LinearLayout>
 
@@ -132,6 +135,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:visibility="gone"
+            android:textColor="?attr/colorOnBackground"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"/>
 

@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
-    android:background="#F5F5F5"
+    android:background="?android:colorBackground"
     android:padding="10dp">
 
     <TextView
@@ -13,7 +13,7 @@
         android:text="Reports &amp; Analytics"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:textColor="#333"
+        android:textColor="?attr/colorOnBackground"
         android:gravity="center"
         android:layout_marginBottom="15dp"/>
 
@@ -27,7 +27,7 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="100dp"
-            android:background="#FFF"
+            android:background="@android:color/white"
             android:orientation="vertical"
             android:gravity="center"
             android:elevation="4dp"
@@ -54,7 +54,7 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="100dp"
-            android:background="#FFF"
+            android:background="@android:color/white"
             android:orientation="vertical"
             android:gravity="center"
             android:elevation="4dp"
@@ -82,7 +82,7 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="100dp"
-            android:background="#FFF"
+            android:background="@android:color/white"
             android:orientation="vertical"
             android:gravity="center"
             android:elevation="4dp"
@@ -109,7 +109,7 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="100dp"
-            android:background="#FFF"
+            android:background="@android:color/white"
             android:orientation="vertical"
             android:gravity="center"
             android:elevation="4dp"
@@ -141,51 +141,50 @@
         android:layout_marginTop="20dp"
         android:weightSum="2">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/BtnSalesReport"
-            android:layout_width="wrap_content"
+            android:layout_width="30dp"
+            android:layout_weight="1"
             android:layout_height="wrap_content"
             android:text="Sales Journal (SJE)"
-            android:backgroundTint="#2196F3"
-            android:layout_marginRight="5dp"/>
+            style="@style/CustomButton" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/BtnInventoryReport"
-            android:layout_width="180dp"
+            android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:text="Inventory"
-            android:backgroundTint="#FF9800"
-            android:layout_marginLeft="5dp"/>
+            android:layout_marginStart="8dp"
+            style="@style/CustomButton" />
     </LinearLayout>
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/BtnComprehensiveReports"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="📊 Comprehensive Reports (CSV)"
-        android:backgroundTint="#2E7D32"
         android:layout_marginTop="10dp"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        style="@style/CustomButton" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/BtnOverallPdf"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="📝 Overall Summary PDF"
-        android:backgroundTint="#455A64"
-        android:textColor="@color/white"
         android:layout_marginTop="8dp"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        style="@style/CustomButtonOutlined" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/BtnSampleData"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="🧪 Sample Data (Admin)"
-        android:backgroundTint="#9E9E9E"
+        android:layout_marginTop="8dp"
         android:textStyle="bold"
-        android:layout_marginTop="8dp" />
+        style="@style/CustomButtonOutlined" />
 
     <LinearLayout
         android:layout_width="match_parent"

@@ -14,7 +14,6 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,11 +21,11 @@ import java.util.concurrent.ExecutionException;
 
 public class SyncWorker extends Worker {
     private static final String TAG = "SyncWorker";
-    private AppDatabase db;
-    private ProductDao productDao;
-    private FirestoreManager firestoreManager;
-    private FirebaseFirestore firestore;
-    private FirebaseStorage storage;
+    private final AppDatabase db;
+    private final ProductDao productDao;
+    private final FirestoreManager firestoreManager;
+    private final FirebaseFirestore firestore;
+    private final FirebaseStorage storage;
 
     public SyncWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
@@ -48,9 +47,9 @@ public class SyncWorker extends Worker {
             for (ProductEntity pe : pending) {
                 if ("DELETE_PENDING".equals(pe.syncState)) {
                     handleDelete(pe);
-                    continue;
+                } else {
+                    handleUpsert(pe);
                 }
-                handleUpsert(pe);
             }
             return Result.success();
         } catch (Exception e) {
@@ -78,7 +77,7 @@ public class SyncWorker extends Worker {
 
     private void handleUpsert(ProductEntity pe) {
         try {
-            if (pe.imagePath != null && (pe.imageUrl == null || pe.imageUrl.isEmpty())) {
+            if (pe.imagePath != null && !pe.imagePath.isEmpty() && (pe.imageUrl == null || pe.imageUrl.isEmpty())) {
                 String url = uploadImage(pe);
                 if (url != null) {
                     pe.imageUrl = url;
@@ -105,6 +104,8 @@ public class SyncWorker extends Worker {
         doc.put("dateAdded", pe.dateAdded);
         doc.put("addedBy", pe.addedBy);
         doc.put("isActive", pe.isActive);
+        doc.put("productType", pe.productType);
+        doc.put("expiryDate", pe.expiryDate);
         doc.put("lastUpdated", firestoreManager.getServerTimestamp());
         if (pe.imageUrl != null && !pe.imageUrl.isEmpty()) {
             doc.put("imageUrl", pe.imageUrl);
@@ -136,10 +137,11 @@ public class SyncWorker extends Worker {
     }
 
     private String uploadImage(ProductEntity pe) throws ExecutionException, InterruptedException {
-        File file = new File(pe.imagePath);
-        if (!file.exists()) {
+        if (pe.imagePath == null || pe.imagePath.isEmpty()) {
             return null;
         }
+        Uri uri = Uri.parse(pe.imagePath);
+
         String id = pe.productId;
         if (id == null || id.isEmpty()) {
             id = "local_" + pe.localId;
@@ -147,10 +149,11 @@ public class SyncWorker extends Worker {
         StorageReference ref = storage
                 .getReference()
                 .child("product_images/" + id + ".jpg");
-        Task<?> uploadTask = ref.putFile(Uri.fromFile(file));
+        Task<?> uploadTask = ref.putFile(uri);
         Tasks.await(uploadTask);
         Task<Uri> urlTask = ref.getDownloadUrl();
-        Uri uri = Tasks.await(urlTask);
-        return uri != null ? uri.toString() : null;
+        Uri download = Tasks.await(urlTask);
+        if (download == null) return null;
+        return download.toString();
     }
 }

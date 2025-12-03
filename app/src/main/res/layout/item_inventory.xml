@@ -12,13 +12,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="12dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="12dp">
+            android:layout_marginBottom="10dp">
 
             <ImageView
                 android:id="@+id/ivProductImage"
@@ -51,7 +51,7 @@
                     android:textSize="12sp"
                     android:textColor="?attr/colorOnBackground"
                     android:alpha="0.7"
-                    android:layout_marginTop="4dp" />
+                    android:layout_marginTop="2dp" />
 
             </LinearLayout>
 
@@ -63,10 +63,10 @@
 
                 <ImageView
                     android:id="@+id/ivStatusIcon"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:src="@drawable/ic_circle"
-                    android:layout_marginBottom="4dp" />
+                    android:layout_marginBottom="2dp" />
 
                 <TextView
                     android:id="@+id/tvStatus"
@@ -85,10 +85,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="12dp"
-            android:padding="12dp"
+            android:layout_marginBottom="8dp"
+            android:padding="8dp"
             android:background="?android:colorBackground"
-            android:alpha="0.9"
+            android:alpha="0.95"
             android:gravity="center_vertical">
 
             <TextView
@@ -125,13 +125,48 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="6dp">
+
+            <ImageButton
+                android:id="@+id/btnDecreaseQty"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="decrease_quantity"
+                android:src="@drawable/ic_remove" />
+
+            <TextView
+                android:id="@+id/tvStock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="8dp"
+                android:text="0"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnBackground" />
+
+            <ImageButton
+                android:id="@+id/btnIncreaseQty"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="increase_quantity"
+                android:src="@drawable/ic_add" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
             android:gravity="center_vertical">
 
             <TextView
                 android:id="@+id/tvSellingPrice"
                 android:layout_width="0dp"
-                android:layout_weight="1"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="Selling: ₱150.00"
                 android:textSize="14sp"
                 android:textStyle="bold"

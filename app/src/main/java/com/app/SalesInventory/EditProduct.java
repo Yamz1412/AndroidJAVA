@@ -11,6 +11,8 @@ import android.provider.MediaStore;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.Toast;
 
@@ -29,6 +31,8 @@ public class EditProduct extends BaseActivity {
     private Spinner categorySpinner;
     private Button updateBtn, cancelBtn;
     private ImageButton btnEditPhoto;
+    private RadioGroup rgProductTypeEdit;
+    private RadioButton rbInventoryEdit, rbMenuEdit;
     private ProductRepository productRepository;
     private String productId;
     private Product currentProduct;
@@ -41,13 +45,6 @@ public class EditProduct extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        AuthManager authManager = AuthManager.getInstance();
-        if (!authManager.isCurrentUserAdmin()) {
-            Toast.makeText(this, "Only admins can edit products", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
 
         setContentView(R.layout.activity_edit_product);
         productRepository = SalesInventoryApplication.getProductRepository();
@@ -62,6 +59,10 @@ public class EditProduct extends BaseActivity {
         updateBtn = findViewById(R.id.updateBtn);
         cancelBtn = findViewById(R.id.cancelBtn);
         btnEditPhoto = findViewById(R.id.btnEditPhoto);
+        rgProductTypeEdit = findViewById(R.id.rgProductTypeEdit);
+        rbInventoryEdit = findViewById(R.id.rbInventoryEdit);
+        rbMenuEdit = findViewById(R.id.rbMenuEdit);
+
         setupImagePickers();
         expiryDateET.setOnClickListener(v -> showDatePicker());
         Bundle extras = getIntent().getExtras();
@@ -140,7 +141,7 @@ public class EditProduct extends BaseActivity {
             @Override
             public void onProductFetched(Product product) {
                 currentProduct = product;
-                populateFields();
+                runOnUiThread(() -> populateFields());
             }
             @Override
             public void onError(String error) {
@@ -159,27 +160,60 @@ public class EditProduct extends BaseActivity {
             if (currentProduct.getExpiryDate() > 0) {
                 expiryDateET.setText(expiryFormat.format(new Date(currentProduct.getExpiryDate())));
             }
-            if (currentProduct.getImagePath() != null && !currentProduct.getImagePath().isEmpty()) {
-                selectedImagePath = currentProduct.getImagePath();
-                btnEditPhoto.setImageURI(Uri.parse(selectedImagePath));
+
+            String imagePath = currentProduct.getImagePath();
+            String imageUrl = currentProduct.getImageUrl();
+            String toLoad = null;
+            if (imageUrl != null && !imageUrl.isEmpty()) {
+                toLoad = imageUrl;
+            } else if (imagePath != null && !imagePath.isEmpty()) {
+                toLoad = imagePath;
+            }
+            if (toLoad != null && !toLoad.isEmpty()) {
+                selectedImagePath = toLoad;
+                try {
+                    Uri uri = Uri.parse(toLoad);
+                    btnEditPhoto.setImageURI(uri);
+                } catch (Exception ignored) {
+                }
+            }
+
+            String type = currentProduct.getProductType() == null ? "" : currentProduct.getProductType();
+            if ("Menu".equalsIgnoreCase(type)) {
+                rbMenuEdit.setChecked(true);
+            } else {
+                rbInventoryEdit.setChecked(true);
             }
         }
     }
 
     private void updateProduct() {
-        if (!validateInputs() || currentProduct == null) {
+        if (currentProduct == null) {
             return;
         }
-        updateBtn.setEnabled(false        );
+        if (!validateInputs()) {
+            return;
+        }
+        updateBtn.setEnabled(false);
         updateBtn.setText("Updating...");
         try {
+            String costStr = costPriceET.getText().toString().trim();
+            String sellingStr = sellingPriceET.getText().toString().trim();
+            String qtyStr = quantityET.getText().toString().trim();
+            String minStockStr = minStockET.getText().toString().trim();
+
+            boolean isInventory = rbInventoryEdit.isChecked();
+
             currentProduct.setProductName(productNameET.getText().toString().trim());
-            currentProduct.setCategoryName(categorySpinner.getSelectedItem() != null ? categorySpinner.getSelectedItem().toString() : currentProduct.getCategoryName());
-            currentProduct.setCostPrice(Double.parseDouble(costPriceET.getText().toString().trim()));
-            currentProduct.setSellingPrice(Double.parseDouble(sellingPriceET.getText().toString().trim()));
-            currentProduct.setQuantity(Integer.parseInt(quantityET.getText().toString().trim()));
+            currentProduct.setCostPrice(Double.parseDouble(costStr.isEmpty() ? "0" : costStr));
+            if (isInventory) {
+                currentProduct.setSellingPrice(0);
+            } else {
+                currentProduct.setSellingPrice(Double.parseDouble(sellingStr.isEmpty() ? "0" : sellingStr));
+            }
+            currentProduct.setQuantity(Integer.parseInt(qtyStr.isEmpty() ? "0" : qtyStr));
             currentProduct.setUnit(unitET.getText().toString().trim());
-            currentProduct.setReorderLevel(Integer.parseInt(minStockET.getText().toString().trim()));
+            currentProduct.setReorderLevel(Integer.parseInt(minStockStr.isEmpty() ? "0" : minStockStr));
             String expiryStr = expiryDateET.getText().toString().trim();
             long expiry = 0L;
             if (!expiryStr.isEmpty()) {
@@ -192,6 +226,13 @@ public class EditProduct extends BaseActivity {
             currentProduct.setExpiryDate(expiry);
             if (selectedImagePath != null && !selectedImagePath.isEmpty()) {
                 currentProduct.setImagePath(selectedImagePath);
+                currentProduct.setImageUrl(null);
+            }
+            int checkedId = rgProductTypeEdit.getCheckedRadioButtonId();
+            if (checkedId == R.id.rbMenuEdit) {
+                currentProduct.setProductType("Menu");
+            } else {
+                currentProduct.setProductType("Raw");
             }
         } catch (NumberFormatException e) {
             Toast.makeText(this, "Invalid number format", Toast.LENGTH_SHORT).show();
@@ -199,43 +240,64 @@ public class EditProduct extends BaseActivity {
             updateBtn.setText("Update Product");
             return;
         }
-        productRepository.updateProduct(currentProduct, selectedImagePath, new ProductRepository.OnProductUpdatedListener() {
+        productRepository.updateProduct(currentProduct, new ProductRepository.OnProductUpdatedListener() {
             @Override
             public void onProductUpdated() {
-                Toast.makeText(EditProduct.this, "Product updated successfully", Toast.LENGTH_SHORT).show();
-                finish();
+                runOnUiThread(() -> {
+                    Toast.makeText(EditProduct.this, "Product updated successfully", Toast.LENGTH_SHORT).show();
+                    navigateBackAfterUpdate();
+                });
             }
             @Override
             public void onError(String error) {
-                Toast.makeText(EditProduct.this, "Error: " + error, Toast.LENGTH_SHORT).show();
-                updateBtn.setEnabled(true);
-                updateBtn.setText("Update Product");
+                runOnUiThread(() -> {
+                    Toast.makeText(EditProduct.this, "Error: " + error, Toast.LENGTH_SHORT).show();
+                    updateBtn.setEnabled(true);
+                    updateBtn.setText("Update Product");
+                });
             }
         });
     }
 
+    private void navigateBackAfterUpdate() {
+        String type = currentProduct.getProductType() == null ? "" : currentProduct.getProductType();
+        Intent intent;
+        if ("Menu".equalsIgnoreCase(type)) {
+            intent = new Intent(EditProduct.this, SellList.class);
+        } else {
+            intent = new Intent(EditProduct.this, Inventory.class);
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
+        finish();
+    }
+
     private boolean validateInputs() {
-        if (productNameET.getText().toString().trim().isEmpty()) {
+        String name = productNameET.getText().toString().trim();
+        if (name.isEmpty()) {
             Toast.makeText(this, "Product name is required", Toast.LENGTH_SHORT).show();
             return false;
         }
-        if (costPriceET.getText().toString().trim().isEmpty()) {
-            Toast.makeText(this, "Cost price is required", Toast.LENGTH_SHORT).show();
+
+        String costStr = costPriceET.getText().toString().trim();
+        String sellingStr = sellingPriceET.getText().toString().trim();
+        boolean isInventory = rbInventoryEdit.isChecked();
+        boolean isMenu = rbMenuEdit.isChecked();
+
+        if (isMenu && sellingStr.isEmpty()) {
+            Toast.makeText(this, "Selling price is required for menu items", Toast.LENGTH_SHORT).show();
             return false;
         }
-        if (sellingPriceET.getText().toString().trim().isEmpty()) {
-            Toast.makeText(this, "Selling price is required", Toast.LENGTH_SHORT).show();
-            return false;
-        }
+
         try {
-            double costPrice = Double.parseDouble(costPriceET.getText().toString().trim());
-            double sellingPrice = Double.parseDouble(sellingPriceET.getText().toString().trim());
+            double costPrice = Double.parseDouble(costStr.isEmpty() ? "0" : costStr);
+            double sellingPrice = Double.parseDouble(sellingStr.isEmpty() ? "0" : sellingStr);
             if (costPrice < 0 || sellingPrice < 0) {
                 Toast.makeText(this, "Prices must be positive", Toast.LENGTH_SHORT).show();
                 return false;
             }
-            if (sellingPrice < costPrice) {
-                Toast.makeText(this, "Selling price must be greater than cost price", Toast.LENGTH_SHORT).show();
+            if (isMenu && sellingPrice <= 0) {
+                Toast.makeText(this, "Selling price must be greater than 0 for menu items", Toast.LENGTH_SHORT).show();
                 return false;
             }
         } catch (NumberFormatException e) {

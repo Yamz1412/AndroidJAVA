@@ -171,6 +171,10 @@ public class SalesRepository {
             listener.onError("User not approved");
             return;
         }
+        long now = System.currentTimeMillis();
+        long date = sale.getDate() > 0 ? sale.getDate() : now;
+        long ts = sale.getTimestamp() > 0 ? sale.getTimestamp() : date;
+
         Map<String, Object> map = new HashMap<>();
         map.put("orderId", sale.getOrderId() != null ? sale.getOrderId() : "");
         map.put("productId", sale.getProductId());
@@ -186,8 +190,9 @@ public class SalesRepository {
         map.put("deliveryPhone", sale.getDeliveryPhone() != null ? sale.getDeliveryPhone() : "");
         map.put("deliveryAddress", sale.getDeliveryAddress() != null ? sale.getDeliveryAddress() : "");
         map.put("deliveryPaymentMethod", sale.getDeliveryPaymentMethod() != null ? sale.getDeliveryPaymentMethod() : "");
-        map.put("date", sale.getDate() > 0 ? sale.getDate() : System.currentTimeMillis());
-        map.put("timestamp", firestoreManager.getServerTimestamp());
+        map.put("date", date);
+        map.put("timestamp", ts);
+
         firestoreManager.getDb().collection(firestoreManager.getUserSalesPath()).add(map)
                 .addOnSuccessListener((DocumentReference documentReference) -> {
                     String saleId = documentReference.getId();

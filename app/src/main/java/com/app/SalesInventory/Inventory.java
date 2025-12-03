@@ -39,6 +39,7 @@ public class Inventory extends BaseActivity {
     private ProductRepository.OnCriticalStockListener criticalListener;
     private boolean showLowStockOnly = false;
     private boolean showNearExpiryOnly = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -132,6 +133,7 @@ public class Inventory extends BaseActivity {
     private void setupCategoryFilterSpinner() {
         Set<String> categories = new HashSet<>();
         for (Product p : allProducts) {
+            if (p == null || !p.isActive()) continue;
             String type = p.getProductType() == null ? "" : p.getProductType();
             if ("Menu".equalsIgnoreCase(type)) continue;
             String c = p.getCategoryName();
@@ -164,7 +166,8 @@ public class Inventory extends BaseActivity {
             }
 
             @Override
-            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {
+            }
         });
     }
 
@@ -175,6 +178,7 @@ public class Inventory extends BaseActivity {
         filteredProducts.clear();
         for (Product p : allProducts) {
             if (p == null || !p.isActive()) continue;
+
             String type = p.getProductType() == null ? "" : p.getProductType();
             if ("Menu".equalsIgnoreCase(type)) continue;
 

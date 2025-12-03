@@ -67,10 +67,6 @@ public class AddProductActivity extends BaseActivity {
         setContentView(R.layout.activity_add_product);
 
         authManager = AuthManager.getInstance();
-        String uid = authManager.getCurrentUserId();
-        boolean approved = authManager.isCurrentUserApproved();
-        android.util.Log.d("AddProductActivity", "uid=" + uid + " approved=" + approved);
-
         productRepository = SalesInventoryApplication.getProductRepository();
         btnAddPhoto = findViewById(R.id.btnAddPhoto);
         productNameET = findViewById(R.id.productNameET);
@@ -221,10 +217,11 @@ public class AddProductActivity extends BaseActivity {
 
         try {
             sellingPrice = Double.parseDouble(sellingPriceET.getText() != null ? sellingPriceET.getText().toString() : "0");
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) {
+        }
 
-        if (sellingPrice <= 0) {
-            Toast.makeText(this, "Selling price is required", Toast.LENGTH_SHORT).show();
+        if ("Menu".equalsIgnoreCase(productType) && sellingPrice <= 0) {
+            Toast.makeText(this, "Selling price is required for menu items", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -233,7 +230,8 @@ public class AddProductActivity extends BaseActivity {
             try {
                 Date d = expiryFormat.parse(expiryStr);
                 if (d != null) expiryDate = d.getTime();
-            } catch (ParseException ignored) { }
+            } catch (ParseException ignored) {
+            }
         }
 
         if ("Menu".equalsIgnoreCase(productType)) {
@@ -244,13 +242,16 @@ public class AddProductActivity extends BaseActivity {
         } else {
             try {
                 costPrice = Double.parseDouble(costPriceET.getText() != null ? costPriceET.getText().toString() : "0");
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) {
+            }
             try {
                 qty = Integer.parseInt(quantityET.getText() != null ? quantityET.getText().toString() : "0");
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) {
+            }
             try {
                 criticalLevel = Integer.parseInt(minStockET.getText() != null ? minStockET.getText().toString() : "0");
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) {
+            }
             if (qty < 0) qty = 0;
             if (criticalLevel < 0) criticalLevel = 0;
             if (criticalLevel > 0) {
@@ -258,6 +259,7 @@ public class AddProductActivity extends BaseActivity {
             } else {
                 reorderLevel = 0;
             }
+            sellingPrice = 0;
         }
 
         Product p = new Product();

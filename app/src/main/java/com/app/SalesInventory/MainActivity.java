@@ -164,6 +164,7 @@ public class MainActivity extends BaseActivity {
             if (error != null && !error.isEmpty()) {
                 Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
                 if (swipeRefresh != null) swipeRefresh.setRefreshing(false);
+                viewModel.clearErrorMessage();
             }
         });
     }

@@ -23,6 +23,13 @@ public abstract class BaseActivity extends AppCompatActivity {
     }
 
     private void enforceAuthentication() {
+        if (this instanceof FirstActivity
+                || this instanceof SignInActivity
+                || this instanceof SignUpActivity
+                || this instanceof WaitingVerificationActivity) {
+            return;
+        }
+
         AuthManager authManager = AuthManager.getInstance();
         if (authManager.getCurrentUser() == null) {
             Intent intent = new Intent(this, SignInActivity.class);

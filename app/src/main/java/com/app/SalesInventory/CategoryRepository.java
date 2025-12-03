@@ -17,9 +17,9 @@ import java.util.Map;
 public class CategoryRepository {
     private static final String TAG = "CategoryRepository";
     private static CategoryRepository instance;
-    private FirestoreManager firestoreManager;
-    private FirestoreSyncListener syncListener;
-    private MutableLiveData<List<Category>> allCategories;
+    private final FirestoreManager firestoreManager;
+    private final FirestoreSyncListener syncListener;
+    private final MutableLiveData<List<Category>> allCategories;
 
     public interface CategoryListCallback {
         void onSuccess(List<Category> categories);

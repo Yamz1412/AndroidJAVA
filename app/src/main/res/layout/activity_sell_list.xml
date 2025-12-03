@@ -17,6 +17,20 @@
         android:textSize="18sp"
         android:gravity="center" />
 
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="6dp"
+        android:fillViewport="false">
+
+        <LinearLayout
+            android:id="@+id/layoutCategoryChips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/SellListD"
         android:layout_width="match_parent"

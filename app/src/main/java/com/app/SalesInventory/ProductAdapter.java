@@ -11,18 +11,20 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
     private List<Product> items = new ArrayList<>();
-    private Context ctx;
-    private ProductRepository repository;
-    private AuthManager authManager;
+    private final Context ctx;
+    private final ProductRepository repository;
+    private final AuthManager authManager;
 
     public ProductAdapter(Context ctx) {
         this.ctx = ctx;
@@ -59,24 +61,32 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
     public void onBindViewHolder(@NonNull VH holder, int position) {
         Product p = items.get(position);
         holder.name.setText(p.getProductName());
-        holder.category.setText(p.getCategoryName());
-        holder.qty.setText("Stock: " + p.getQuantity());
-        holder.price.setText("Selling: ₱" + String.format("%.2f", p.getSellingPrice()));
-        holder.syncState.setText("");
-        holder.retryBtn.setVisibility(View.GONE);
+        holder.category.setText(p.getCategoryName() == null ? "" : p.getCategoryName());
+        holder.quantityText.setText("Stock: " + p.getQuantity());
+        holder.costPriceText.setText("Cost: ₱" + String.format(Locale.US, "%.2f", p.getCostPrice()));
+        holder.stockText.setText(String.valueOf(p.getQuantity()));
+
+        String type = p.getProductType() == null ? "" : p.getProductType();
+        if ("Raw".equalsIgnoreCase(type)) {
+            holder.sellingPriceText.setVisibility(View.GONE);
+        } else {
+            holder.sellingPriceText.setVisibility(View.VISIBLE);
+            holder.sellingPriceText.setText("Selling: ₱" + String.format(Locale.US, "%.2f", p.getSellingPrice()));
+        }
 
         String imageUrl = p.getImageUrl();
         String imagePath = p.getImagePath();
+        String toLoad = null;
+
         if (imageUrl != null && !imageUrl.isEmpty()) {
-            Glide.with(ctx)
-                    .load(imageUrl)
-                    .placeholder(R.drawable.ic_image_placeholder)
-                    .error(R.drawable.ic_image_placeholder)
-                    .centerCrop()
-                    .into(holder.productImage);
+            toLoad = imageUrl;
         } else if (imagePath != null && !imagePath.isEmpty()) {
+            toLoad = imagePath;
+        }
+
+        if (toLoad != null && !toLoad.isEmpty()) {
             Glide.with(ctx)
-                    .load(android.net.Uri.parse(imagePath))
+                    .load(toLoad)
                     .placeholder(R.drawable.ic_image_placeholder)
                     .error(R.drawable.ic_image_placeholder)
                     .centerCrop()
@@ -85,50 +95,72 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
             holder.productImage.setImageResource(R.drawable.ic_image_placeholder);
         }
 
-        final long localId = p.getLocalId();
-        new Thread(() -> {
-            ProductDao dao = AppDatabase.getInstance(ctx).productDao();
-            ProductEntity e = dao.getByLocalId(localId);
-            if (e != null) {
-                String state = e.syncState == null ? "" : e.syncState;
-                holder.syncState.post(() -> {
-                    switch (state) {
-                        case "PENDING":
-                            holder.syncState.setText("Pending");
-                            holder.retryBtn.setVisibility(View.GONE);
-                            break;
-                        case "DELETE_PENDING":
-                            holder.syncState.setText("Delete pending");
-                            holder.retryBtn.setVisibility(View.VISIBLE);
-                            break;
-                        case "ERROR":
-                            holder.syncState.setText("Error");
-                            holder.retryBtn.setVisibility(View.VISIBLE);
-                            break;
-                        case "SYNCED":
-                            holder.syncState.setText("Synced");
-                            holder.retryBtn.setVisibility(View.GONE);
-                            break;
-                        default:
-                            holder.syncState.setText(state);
-                            holder.retryBtn.setVisibility(View.GONE);
-                            break;
-                    }
-                });
+        holder.itemView.setOnClickListener(v -> {
+            Intent i = new Intent(ctx, ProductDetailActivity.class);
+            i.putExtra("productId", p.getProductId());
+            ctx.startActivity(i);
+        });
+
+        holder.itemView.setOnLongClickListener(v -> {
+            if (!authManager.isCurrentUserAdmin()) {
+                return true;
             }
-        }).start();
+            new AlertDialog.Builder(ctx)
+                    .setTitle("Delete Product")
+                    .setMessage("Delete " + p.getProductName() + "?")
+                    .setPositiveButton("Delete", (dialog, which) -> repository.deleteProduct(p.getProductId(), new ProductRepository.OnProductDeletedListener() {
+                        @Override
+                        public void onProductDeleted() {
+                        }
 
-        if (authManager.isCurrentUserAdmin()) {
-            holder.itemView.setOnClickListener(v -> {
-                Intent i = new Intent(ctx, EditProduct.class);
-                i.putExtra("productId", p.getProductId());
-                ctx.startActivity(i);
+                        @Override
+                        public void onError(String error) {
+                        }
+                    }))
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            return true;
+        });
+
+        holder.btnIncrease.setOnClickListener(v -> {
+            int newQty = p.getQuantity() + 1;
+            repository.updateProductQuantity(p.getProductId(), newQty, new ProductRepository.OnProductUpdatedListener() {
+                @Override
+                public void onProductUpdated() {
+                    p.setQuantity(newQty);
+                    if (ctx instanceof android.app.Activity) {
+                        ((android.app.Activity) ctx).runOnUiThread(() -> {
+                            holder.stockText.setText(String.valueOf(newQty));
+                            holder.quantityText.setText("Stock: " + newQty);
+                        });
+                    }
+                }
+                @Override
+                public void onError(String error) {
+                }
             });
-        } else {
-            holder.itemView.setOnClickListener(null);
-        }
+        });
 
-        holder.retryBtn.setOnClickListener(v -> repository.retrySync(localId));
+        holder.btnDecrease.setOnClickListener(v -> {
+            int current = p.getQuantity();
+            if (current <= 0) return;
+            int newQty = current - 1;
+            repository.updateProductQuantity(p.getProductId(), newQty, new ProductRepository.OnProductUpdatedListener() {
+                @Override
+                public void onProductUpdated() {
+                    p.setQuantity(newQty);
+                    if (ctx instanceof android.app.Activity) {
+                        ((android.app.Activity) ctx).runOnUiThread(() -> {
+                            holder.stockText.setText(String.valueOf(newQty));
+                            holder.quantityText.setText("Stock: " + newQty);
+                        });
+                    }
+                }
+                @Override
+                public void onError(String error) {
+                }
+            });
+        });
     }
 
     @Override
@@ -137,19 +169,27 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
     }
 
     static class VH extends RecyclerView.ViewHolder {
-        TextView name, category, qty, price, syncState;
-        ImageButton retryBtn;
+        TextView name;
+        TextView category;
+        TextView quantityText;
+        TextView costPriceText;
+        TextView stockText;
+        TextView sellingPriceText;
         ImageView productImage;
+        ImageButton btnIncrease;
+        ImageButton btnDecrease;
 
         VH(@NonNull View itemView) {
             super(itemView);
+            productImage = itemView.findViewById(R.id.ivProductImage);
             name = itemView.findViewById(R.id.tvProductName);
             category = itemView.findViewById(R.id.tvCategory);
-            qty = itemView.findViewById(R.id.tvQuantity);
-            price = itemView.findViewById(R.id.tvSellingPrice);
-            syncState = itemView.findViewById(R.id.tvSyncState);
-            retryBtn = itemView.findViewById(R.id.btnRetrySync);
-            productImage = itemView.findViewById(R.id.ivProductImage);
+            quantityText = itemView.findViewById(R.id.tvQuantity);
+            costPriceText = itemView.findViewById(R.id.tvCostPrice);
+            stockText = itemView.findViewById(R.id.tvStock);
+            sellingPriceText = itemView.findViewById(R.id.tvSellingPrice);
+            btnIncrease = itemView.findViewById(R.id.btnIncreaseQty);
+            btnDecrease = itemView.findViewById(R.id.btnDecreaseQty);
         }
     }
 }

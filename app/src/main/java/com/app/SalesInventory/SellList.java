@@ -1,6 +1,5 @@
 package com.app.SalesInventory;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -10,6 +9,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
@@ -18,15 +18,21 @@ import android.widget.Toast;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public class SellList extends BaseActivity {
     private RecyclerView sellListView;
     private SellAdapter sellAdapter;
-    private List<Product> productList;
+    private List<Product> allMenuProducts;
+    private List<Product> filteredProducts;
     private ProductRepository productRepository;
     private Button btnCheckout;
     private CartManager cartManager;
+    private LinearLayout layoutCategoryChips;
+    private String selectedCategory = "All";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,47 +42,94 @@ public class SellList extends BaseActivity {
         cartManager = CartManager.getInstance();
         sellListView = findViewById(R.id.SellListD);
         btnCheckout = findViewById(R.id.btnCheckout);
-        productList = new ArrayList<>();
-        sellAdapter = new SellAdapter(this, productList);
+        layoutCategoryChips = findViewById(R.id.layoutCategoryChips);
+
+        allMenuProducts = new ArrayList<>();
+        filteredProducts = new ArrayList<>();
+
+        sellAdapter = new SellAdapter(this, filteredProducts);
+        sellAdapter.setOnProductClickListener(this::showProductOptionsDialog);
+        sellAdapter.setOnProductLongClickListener(this::handleProductLongClick);
+
         sellListView.setLayoutManager(new GridLayoutManager(this, 3));
         sellListView.setAdapter(sellAdapter);
+
         loadProducts();
-        setupListItemClick();
         setupCheckoutButton();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadProducts();
     }
 
     private void loadProducts() {
         productRepository.getAllProducts().observe(this, products -> {
+            allMenuProducts.clear();
             if (products != null) {
-                productList.clear();
                 for (Product p : products) {
                     if (p == null) continue;
                     if (!p.isActive()) continue;
                     String type = p.getProductType() == null ? "" : p.getProductType();
                     if ("Menu".equalsIgnoreCase(type)) {
-                        productList.add(p);
+                        allMenuProducts.add(p);
                     }
                 }
-                sellAdapter.updateProducts(productList);
             }
+            buildCategoryChips();
+            applyCategoryFilter();
         });
     }
 
-    private void setupListItemClick() {
-        sellListView.addOnItemTouchListener(new RecyclerItemClickListener(
-                this,
-                sellListView,
-                new RecyclerItemClickListener.OnItemClickListener() {
-                    @Override
-                    public void onItemClick(View view, int position) {
-                        if (position < 0 || position >= productList.size()) return;
-                        Product selectedProduct = productList.get(position);
-                        showProductOptionsDialog(selectedProduct);
-                    }
+    private void buildCategoryChips() {
+        layoutCategoryChips.removeAllViews();
+        Set<String> categories = new HashSet<>();
+        for (Product p : allMenuProducts) {
+            String c = p.getCategoryName();
+            if (c != null && !c.isEmpty()) {
+                categories.add(c);
+            }
+        }
+        List<String> list = new ArrayList<>();
+        list.add("All");
+        list.addAll(categories);
 
-                    @Override
-                    public void onLongItemClick(View view, int position) {}
-                }));
+        for (String cat : list) {
+            TextView chip = new TextView(this);
+            chip.setText(cat);
+            chip.setPadding(32, 12, 32, 12);
+            chip.setTextSize(14f);
+            chip.setAllCaps(false);
+            chip.setBackgroundResource(R.drawable.chip_background);
+            chip.setTextColor(getResources().getColor(cat.equals(selectedCategory) ? android.R.color.white : android.R.color.black));
+            chip.setOnClickListener(v -> {
+                selectedCategory = cat;
+                buildCategoryChips();
+                applyCategoryFilter();
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(8, 0, 8, 0);
+            chip.setLayoutParams(lp);
+            layoutCategoryChips.addView(chip);
+        }
+    }
+
+    private void applyCategoryFilter() {
+        filteredProducts.clear();
+        for (Product p : allMenuProducts) {
+            if ("All".equalsIgnoreCase(selectedCategory)) {
+                filteredProducts.add(p);
+            } else {
+                String c = p.getCategoryName() == null ? "" : p.getCategoryName();
+                if (c.equalsIgnoreCase(selectedCategory)) {
+                    filteredProducts.add(p);
+                }
+            }
+        }
+        sellAdapter.updateProducts(filteredProducts);
     }
 
     private void setupCheckoutButton() {
@@ -88,6 +141,19 @@ public class SellList extends BaseActivity {
             Intent intent = new Intent(SellList.this, sellProduct.class);
             startActivity(intent);
         });
+    }
+
+    private void handleProductLongClick(Product product) {
+        AuthManager authManager = AuthManager.getInstance();
+        authManager.isCurrentUserAdminAsync(success -> runOnUiThread(() -> {
+            if (!success) {
+                Toast.makeText(this, "Only admins can manage products", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Intent i = new Intent(SellList.this, ProductDetailActivity.class);
+            i.putExtra("productId", product.getProductId());
+            startActivity(i);
+        }));
     }
 
     private void showProductOptionsDialog(Product product) {
@@ -106,7 +172,7 @@ public class SellList extends BaseActivity {
         Button btnAddToCart = dialogView.findViewById(R.id.btnOptionAddToCart);
 
         tvName.setText(product.getProductName());
-        tvPrice.setText("₱" + String.format("%.2f", product.getSellingPrice()));
+        tvPrice.setText("₱" + String.format(Locale.US, "%.2f", product.getSellingPrice()));
 
         rbMedium.setChecked(true);
         etQty.setText("1");
@@ -146,7 +212,7 @@ public class SellList extends BaseActivity {
             String qtyStr = etQty.getText() != null ? etQty.getText().toString().trim() : "";
             int q;
             try {
-                q = Integer.parseInt(qtyStr);
+                q = Integer.parseInt(qtyStr.isEmpty() ? "0" : qtyStr);
             } catch (Exception e) {
                 Toast.makeText(this, "Invalid quantity", Toast.LENGTH_SHORT).show();
                 return;

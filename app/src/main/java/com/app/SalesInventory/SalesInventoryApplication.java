@@ -30,6 +30,8 @@ public class SalesInventoryApplication extends Application {
         alertRepository = AlertRepository.getInstance(this);
         salesRepository = SalesRepository.getInstance(this);
         productRepository.runExpirySweep();
+        ProductRemoteSyncer syncer = new ProductRemoteSyncer(this);
+        syncer.syncAllProducts(null);
     }
 
     public static SalesInventoryApplication getInstance() {

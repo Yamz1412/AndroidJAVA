@@ -8,60 +8,86 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.Key;
+import com.bumptech.glide.signature.ObjectKey;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class SellAdapter extends RecyclerView.Adapter<SellAdapter.VH> {
-    private Context context;
-    private List<Product> products = new ArrayList<>();
 
-    public SellAdapter(Context context, List<Product> products) {
-        this.context = context;
-        if (products != null) {
-            this.products = new ArrayList<>(products);
-        }
+    public interface OnProductClickListener {
+        void onProductClick(Product product);
     }
 
-    public void updateProducts(List<Product> newProducts) {
-        products.clear();
-        if (newProducts != null) {
-            products.addAll(newProducts);
+    public interface OnProductLongClickListener {
+        void onProductLongClick(Product product);
+    }
+
+    private final Context ctx;
+    private final List<Product> items = new ArrayList<>();
+    private final ProductRepository productRepository;
+    private final AuthManager authManager;
+    private OnProductClickListener clickListener;
+    private OnProductLongClickListener longClickListener;
+
+    public SellAdapter(Context ctx, List<Product> initial) {
+        this.ctx = ctx;
+        if (initial != null) {
+            items.addAll(initial);
         }
+        productRepository = SalesInventoryApplication.getProductRepository();
+        authManager = AuthManager.getInstance();
+    }
+
+    public void updateProducts(List<Product> list) {
+        items.clear();
+        if (list != null) items.addAll(list);
         notifyDataSetChanged();
     }
 
-    public Product getItem(int position) {
-        return products.get(position);
+    public void setOnProductClickListener(OnProductClickListener listener) {
+        this.clickListener = listener;
+    }
+
+    public void setOnProductLongClickListener(OnProductLongClickListener listener) {
+        this.longClickListener = listener;
     }
 
     @NonNull
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View v = LayoutInflater.from(context).inflate(R.layout.productsell, parent, false);
+        View v = LayoutInflater.from(ctx).inflate(R.layout.productsell, parent, false);
         return new VH(v);
     }
 
     @Override
     public void onBindViewHolder(@NonNull VH holder, int position) {
-        Product p = products.get(position);
-        if (p == null) return;
+        Product p = items.get(position);
+        holder.name.setText(p.getProductName());
+
+        String category = p.getCategoryName() == null ? "" : p.getCategoryName();
+        holder.code.setText(category.isEmpty() ? "Uncategorized" : category);
 
         String imageUrl = p.getImageUrl();
         String imagePath = p.getImagePath();
+        String toLoad = null;
         if (imageUrl != null && !imageUrl.isEmpty()) {
-            Glide.with(context)
-                    .load(imageUrl)
-                    .placeholder(R.drawable.ic_image_placeholder)
-                    .error(R.drawable.ic_image_placeholder)
-                    .centerCrop()
-                    .into(holder.productImage);
+            toLoad = imageUrl;
         } else if (imagePath != null && !imagePath.isEmpty()) {
-            Glide.with(context)
-                    .load(android.net.Uri.parse(imagePath))
+            toLoad = imagePath;
+        }
+
+        if (toLoad != null && !toLoad.isEmpty()) {
+            Key sig = new ObjectKey((p.getProductId() != null ? p.getProductId() : "") + "_" + p.getDateAdded() + "_" + p.getExpiryDate());
+            Glide.with(ctx)
+                    .load(toLoad)
+                    .signature(sig)
                     .placeholder(R.drawable.ic_image_placeholder)
                     .error(R.drawable.ic_image_placeholder)
                     .centerCrop()
@@ -70,35 +96,53 @@ public class SellAdapter extends RecyclerView.Adapter<SellAdapter.VH> {
             holder.productImage.setImageResource(R.drawable.ic_image_placeholder);
         }
 
-        holder.nameTV.setText(p.getProductName());
-        holder.codeTV.setText(p.getProductId() != null ? p.getProductId() : "");
-        holder.amountTV.setText(String.valueOf(p.getQuantity()));
-        holder.priceTV.setText("₱ " + String.format("%.2f", p.getSellingPrice()));
-        if (p.getBarcode() != null && !p.getBarcode().isEmpty()) {
-            holder.lotTV.setText(p.getBarcode());
-            holder.lotTV.setVisibility(View.VISIBLE);
-        } else {
-            holder.lotTV.setVisibility(View.GONE);
-        }
+        holder.itemView.setOnClickListener(v -> {
+            if (clickListener != null) clickListener.onProductClick(p);
+        });
+
+        holder.itemView.setOnLongClickListener(v -> {
+            if (longClickListener != null) {
+                longClickListener.onProductLongClick(p);
+                return true;
+            }
+            if (!authManager.isCurrentUserAdmin()) return true;
+            new AlertDialog.Builder(ctx)
+                    .setTitle("Delete Menu Item")
+                    .setMessage("Delete " + p.getProductName() + " from menu?")
+                    .setPositiveButton("Delete", (dialog, which) -> {
+                        productRepository.deleteProduct(p.getProductId(), new ProductRepository.OnProductDeletedListener() {
+                            @Override
+                            public void onProductDeleted() {
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                            }
+                        });
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            return true;
+        });
     }
 
     @Override
     public int getItemCount() {
-        return products.size();
+        return items.size();
     }
 
     static class VH extends RecyclerView.ViewHolder {
+        TextView name;
+        TextView code;
+        TextView price;
         ImageView productImage;
-        TextView nameTV, codeTV, amountTV, priceTV, lotTV;
 
         VH(@NonNull View itemView) {
             super(itemView);
             productImage = itemView.findViewById(R.id.ivProductImageSell);
-            nameTV = itemView.findViewById(R.id.NameTVS11);
-            codeTV = itemView.findViewById(R.id.CodeTVS11);
-            amountTV = itemView.findViewById(R.id.AmountTVS11);
-            priceTV = itemView.findViewById(R.id.SellPriceTVS11);
-            lotTV = itemView.findViewById(R.id.LotTVS11);
+            name = itemView.findViewById(R.id.NameTVS11);
+            code = itemView.findViewById(R.id.CodeTVS11);
+            price = itemView.findViewById(R.id.SellPriceTVS11);
         }
     }
 }

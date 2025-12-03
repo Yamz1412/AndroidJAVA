@@ -117,8 +117,9 @@ public class ProductRepository {
             e.dateAdded = now;
             e.lastUpdated = now;
             e.syncState = "PENDING";
-            e.imagePath = imagePath;
-            e.imageUrl = null;
+            if (imagePath != null && !imagePath.isEmpty()) {
+                e.imagePath = imagePath;
+            }
             long localId = productDao.insert(e);
             checkExpiryForEntity(e);
             SyncScheduler.enqueueImmediateSync(application.getApplicationContext());
@@ -155,11 +156,11 @@ public class ProductRepository {
                 existing.unit = product.getUnit();
                 existing.dateAdded = product.getDateAdded();
                 existing.expiryDate = product.getExpiryDate();
+                existing.productType = product.getProductType();
                 existing.lastUpdated = now;
                 existing.syncState = "PENDING";
-                if (imagePath != null) {
+                if (imagePath != null && !imagePath.isEmpty()) {
                     existing.imagePath = imagePath;
-                    existing.imageUrl = null;
                 }
                 productDao.update(existing);
                 checkExpiryForEntity(existing);
@@ -167,8 +168,9 @@ public class ProductRepository {
                 ProductEntity e = mapProductToEntity(product);
                 e.lastUpdated = now;
                 e.syncState = "PENDING";
-                e.imagePath = imagePath;
-                e.imageUrl = null;
+                if (imagePath != null && !imagePath.isEmpty()) {
+                    e.imagePath = imagePath;
+                }
                 productDao.insert(e);
                 checkExpiryForEntity(e);
             }
@@ -348,8 +350,11 @@ public class ProductRepository {
                 existing.dateAdded = p.getDateAdded();
                 existing.addedBy = p.getAddedBy();
                 existing.isActive = p.isActive();
-                existing.imageUrl = p.getImageUrl();
+                if (p.getImageUrl() != null && !p.getImageUrl().isEmpty()) {
+                    existing.imageUrl = p.getImageUrl();
+                }
                 existing.expiryDate = p.getExpiryDate();
+                existing.productType = p.getProductType();
                 existing.lastUpdated = now;
                 existing.syncState = "SYNCED";
                 productDao.update(existing);
@@ -375,6 +380,7 @@ public class ProductRepository {
                 e.isActive = p.isActive();
                 e.imageUrl = p.getImageUrl();
                 e.expiryDate = p.getExpiryDate();
+                e.productType = p.getProductType();
                 e.lastUpdated = now;
                 e.syncState = "SYNCED";
                 productDao.insert(e);
@@ -407,6 +413,7 @@ public class ProductRepository {
                 p.getImageUrl()
         );
         e.expiryDate = p.getExpiryDate();
+        e.productType = p.getProductType();
         return e;
     }
 
@@ -433,6 +440,7 @@ public class ProductRepository {
         p.setImagePath(e.imagePath);
         p.setImageUrl(e.imageUrl);
         p.setExpiryDate(e.expiryDate);
+        p.setProductType(e.productType);
         return p;
     }
 

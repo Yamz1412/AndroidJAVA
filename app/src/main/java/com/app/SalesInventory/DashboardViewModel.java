@@ -64,6 +64,9 @@ public class DashboardViewModel extends AndroidViewModel {
     public LiveData<String> getErrorMessage() {
         return errorMessage;
     }
+    public void clearErrorMessage() {
+        errorMessage.setValue("");
+    }
 
     public void loadDashboardData() {
         isLoading.setValue(true);

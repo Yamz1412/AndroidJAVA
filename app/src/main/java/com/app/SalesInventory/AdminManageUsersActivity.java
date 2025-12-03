@@ -135,6 +135,7 @@ public class AdminManageUsersActivity extends BaseActivity {
                         Toast.makeText(AdminManageUsersActivity.this, "No snapshot returned", Toast.LENGTH_SHORT).show();
                         return;
                     }
+                    String currentUid = authManager.getCurrentUserId();
                     int total = 0;
                     for (DocumentSnapshot doc : snapshot.getDocuments()) {
                         total++;
@@ -153,20 +154,20 @@ public class AdminManageUsersActivity extends BaseActivity {
                         String email = doc.contains("email") ? doc.getString("email") : (doc.contains("Email") ? doc.getString("Email") : "");
                         String name = doc.contains("name") ? doc.getString("name") : (doc.contains("Name") ? doc.getString("Name") : "");
                         AdminUserItem u = new AdminUserItem(id, name != null ? name : "", email != null ? email : "", role != null ? role : "Staff", approved);
-                        Log.d(TAG, "ADDING -> id=" + id + " approved=" + approved + " role=" + role + " email=" + email + " name=" + name);
-                        if (u.isApproved()) {
-                            staffUsers.add(u);
-                            Log.d(TAG, "ADDED TO staffUsers: " + id);
-                        } else {
+                        if (!u.isApproved()) {
                             pendingUsers.add(u);
-                            Log.d(TAG, "ADDED TO pendingUsers: " + id);
+                        } else {
+                            if (u.getRole() != null && "Admin".equalsIgnoreCase(u.getRole())) {
+                                continue;
+                            }
+                            if (currentUid != null && currentUid.equals(u.getUid())) {
+                                continue;
+                            }
+                            staffUsers.add(u);
                         }
-                        Log.d(TAG, "INTERMEDIATE sizes: pending=" + pendingUsers.size() + " staff=" + staffUsers.size());
                     }
-                    Log.d(TAG, "BEFORE ADAPTER update total=" + total + " pending=" + pendingUsers.size() + " staff=" + staffUsers.size());
                     pendingAdapter.update(pendingUsers);
                     manageAdapter.update(staffUsers);
-                    Log.d(TAG, "AFTER ADAPTER update total=" + total + " pending=" + pendingUsers.size() + " staff=" + staffUsers.size());
                     tvNoPending.setVisibility(pendingUsers.isEmpty() ? View.VISIBLE : View.GONE);
                 });
             }

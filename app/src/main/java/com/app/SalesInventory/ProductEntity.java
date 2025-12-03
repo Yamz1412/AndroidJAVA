@@ -30,6 +30,7 @@ public class ProductEntity {
     public String imagePath;
     public String imageUrl;
     public long expiryDate;
+    public String productType;
 
     public ProductEntity() {}
 
@@ -56,5 +57,6 @@ public class ProductEntity {
         this.imagePath = imagePath;
         this.imageUrl = imageUrl;
         this.expiryDate = 0L;
+        this.productType = "Raw";
     }
 }

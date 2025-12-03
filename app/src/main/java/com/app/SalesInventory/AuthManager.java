@@ -2,7 +2,6 @@ package com.app.SalesInventory;
 
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
-import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GetTokenResult;
@@ -25,6 +24,8 @@ public class AuthManager {
     private static AuthManager instance;
     private FirebaseFirestore fStore;
     private FirebaseAuth auth;
+    private volatile Boolean cachedIsAdmin = null;
+    private volatile Boolean cachedIsApproved = null;
 
     public interface UsersCallback {
         void onComplete(List<AdminUserItem> users);
@@ -61,83 +62,21 @@ public class AuthManager {
         return fStore;
     }
 
-    public boolean isCurrentUserAdminByAdminCollection() {
-        FirebaseUser u = auth.getCurrentUser();
-        if (u == null) return false;
-        String uid = u.getUid();
-        try {
-            DocumentSnapshot snap = Tasks.await(fStore.collection("admin").document(uid).get());
-            if (snap != null && snap.exists()) {
-                Boolean approved = snap.getBoolean("approved");
-                if (approved == null) approved = true;
-                return approved;
-            }
-        } catch (Exception e) {
-            return false;
-        }
-        return false;
-    }
-
-    public boolean isCurrentUserAdminByUsersCollection() {
-        FirebaseUser u = auth.getCurrentUser();
-        if (u == null) return false;
-        String uid = u.getUid();
-        try {
-            DocumentSnapshot snap = Tasks.await(fStore.collection("users").document(uid).get());
-            if (snap != null && snap.exists()) {
-                String role = snap.getString("role");
-                if (role == null) role = snap.getString("Role");
-                Boolean approved = snap.getBoolean("approved");
-                if (approved == null) approved = false;
-                if (role != null && "admin".equalsIgnoreCase(role) && approved) return true;
-            }
-        } catch (Exception e) {
-            return false;
-        }
-        return false;
-    }
-
-    public boolean isCurrentUserAdminByClaim() {
-        FirebaseUser u = auth.getCurrentUser();
-        if (u == null) return false;
-        try {
-            GetTokenResult tr = Tasks.await(u.getIdToken(true));
-            if (tr != null) {
-                Object claim = tr.getClaims().get("admin");
-                if (claim instanceof Boolean) return (Boolean) claim;
-            }
-        } catch (Exception e) {
-            return false;
-        }
-        return false;
-    }
-
     public boolean isCurrentUserAdmin() {
-        if (isCurrentUserAdminByClaim()) return true;
-        if (isCurrentUserAdminByAdminCollection()) return true;
-        return isCurrentUserAdminByUsersCollection();
+        if (cachedIsAdmin != null) return cachedIsAdmin;
+        return false;
     }
 
     public boolean isCurrentUserApproved() {
-        FirebaseUser u = auth.getCurrentUser();
-        if (u == null) return false;
-        String uid = u.getUid();
-        try {
-            DocumentSnapshot snap = Tasks.await(fStore.collection("users").document(uid).get());
-            if (snap != null && snap.exists()) {
-                Boolean approved = snap.getBoolean("approved");
-                if (approved == null) approved = false;
-                return approved;
-            }
-        } catch (Exception e) {
-            return false;
-        }
+        if (cachedIsApproved != null) return cachedIsApproved;
         return false;
     }
 
-    public void isCurrentUserAdminAsync(@NonNull final SimpleCallback callback) {
+    public void refreshCurrentUserStatus(@NonNull final SimpleCallback callback) {
         FirebaseUser u = auth.getCurrentUser();
         if (u == null) {
+            cachedIsAdmin = false;
+            cachedIsApproved = false;
             callback.onComplete(false);
             return;
         }
@@ -150,6 +89,8 @@ public class AuthManager {
                     if (claim instanceof Boolean) isAdminClaim = (Boolean) claim;
                 }
                 if (isAdminClaim) {
+                    cachedIsAdmin = true;
+                    cachedIsApproved = true;
                     callback.onComplete(true);
                     return;
                 }
@@ -159,9 +100,12 @@ public class AuthManager {
                     public void onComplete(@NonNull Task<DocumentSnapshot> adminTask) {
                         if (adminTask.isSuccessful() && adminTask.getResult() != null && adminTask.getResult().exists()) {
                             DocumentSnapshot adminDoc = adminTask.getResult();
+                            String role = adminDoc.getString("role");
                             Boolean adminApproved = adminDoc.getBoolean("approved");
-                            if (adminApproved == null) adminApproved = true;
-                            if (adminApproved) {
+                            if (adminApproved == null) adminApproved = false;
+                            if (role != null && role.equalsIgnoreCase("Admin") && adminApproved) {
+                                cachedIsAdmin = true;
+                                cachedIsApproved = true;
                                 callback.onComplete(true);
                                 return;
                             }
@@ -169,24 +113,36 @@ public class AuthManager {
                         fStore.collection("users").document(uid).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
                             @Override
                             public void onComplete(@NonNull Task<DocumentSnapshot> userTask) {
+                                boolean result = false;
+                                boolean approvedFlag = false;
                                 if (userTask.isSuccessful() && userTask.getResult() != null && userTask.getResult().exists()) {
                                     DocumentSnapshot userDoc = userTask.getResult();
                                     String role = userDoc.getString("role");
                                     if (role == null) role = userDoc.getString("Role");
                                     Boolean approved = userDoc.getBoolean("approved");
                                     if (approved == null) approved = false;
-                                    if (role != null && "admin".equalsIgnoreCase(role) && approved) {
-                                        callback.onComplete(true);
-                                        return;
+                                    approvedFlag = approved;
+                                    if (role != null && "Admin".equalsIgnoreCase(role) && approved) {
+                                        result = true;
                                     }
                                 }
-                                callback.onComplete(false);
+                                cachedIsAdmin = result;
+                                cachedIsApproved = approvedFlag;
+                                callback.onComplete(result);
                             }
                         });
                     }
                 });
             }
         });
+    }
+
+    public void isCurrentUserAdminAsync(@NonNull final SimpleCallback callback) {
+        if (cachedIsAdmin != null) {
+            callback.onComplete(cachedIsAdmin);
+            return;
+        }
+        refreshCurrentUserStatus(callback);
     }
 
     public void getCurrentUserRoleAsync(@NonNull final RoleCallback callback) {
@@ -257,7 +213,10 @@ public class AuthManager {
                         if (name == null) name = doc.getString("Name");
                         Boolean approved = doc.getBoolean("approved");
                         if (approved == null) approved = true;
-                        AdminUserItem u = new AdminUserItem(uid, name != null ? name : "", email != null ? email : "", "Staff", approved);
+                        String role = doc.getString("role");
+                        if (role == null) role = doc.getString("Role");
+                        if (role == null) role = "Staff";
+                        AdminUserItem u = new AdminUserItem(uid, name != null ? name : "", email != null ? email : "", role, approved);
                         list.add(u);
                     }
                 }

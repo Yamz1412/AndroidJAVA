@@ -1,5 +1,7 @@
 package com.app.SalesInventory;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.camera.core.Camera;
@@ -13,6 +15,7 @@ import androidx.core.content.ContextCompat;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -85,6 +88,9 @@ public class sellProduct extends BaseActivity {
     private CriticalStockNotifier criticalNotifier;
     private ProductRepository.OnCriticalStockListener criticalListener;
 
+    private ActivityResultLauncher<String> galleryReceiptLauncher;
+    private Uri galleryReceiptUri;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -92,14 +98,15 @@ public class sellProduct extends BaseActivity {
         cartManager = CartManager.getInstance();
         initRepositories();
         initViews();
+        initGalleryLauncher();
         setupListeners();
         initCart();
         calculateTotalFromCart();
     }
 
     private void initRepositories() {
-        salesRepository = SalesRepository.getInstance();
-        productRepository = ProductRepository.getInstance(getApplication());
+        salesRepository = SalesInventoryApplication.getSalesRepository();
+        productRepository = SalesInventoryApplication.getProductRepository();
         cartManager = CartManager.getInstance();
         criticalNotifier = CriticalStockNotifier.getInstance();
         criticalListener = product -> runOnUiThread(() ->
@@ -143,6 +150,20 @@ public class sellProduct extends BaseActivity {
         spinnerPaymentMethod.setAdapter(pmAdapter);
 
         tvTotalPrice.setText("₱0.00");
+    }
+
+    private void initGalleryLauncher() {
+        galleryReceiptLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                uri -> {
+                    if (uri != null) {
+                        galleryReceiptUri = uri;
+                        receiptCaptured = true;
+                        tvReceiptStatus.setText("Receipt from gallery");
+                        Toast.makeText(this, "Receipt selected from gallery", Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
     }
 
     private void setupListeners() {
@@ -464,6 +485,7 @@ public class sellProduct extends BaseActivity {
         android.widget.ImageButton btnSwitchCamera = dialogView.findViewById(R.id.btnSwitchCamera);
         android.widget.ImageButton btnCapture = dialogView.findViewById(R.id.btnCapture);
         Button btnClose = dialogView.findViewById(R.id.btnClose);
+        Button btnGallery = dialogView.findViewById(R.id.btnGallery);
 
         cameraDialog = new AlertDialog.Builder(this)
                 .setView(dialogView)
@@ -474,9 +496,19 @@ public class sellProduct extends BaseActivity {
         btnSwitchCamera.setOnClickListener(v -> switchCamera());
         btnCapture.setOnClickListener(v -> captureReceipt());
         btnClose.setOnClickListener(v -> cameraDialog.dismiss());
+        btnGallery.setOnClickListener(v -> {
+            if (cameraDialog != null) {
+                cameraDialog.dismiss();
+            }
+            openReceiptGallery();
+        });
 
         cameraDialog.setOnShowListener(dialog -> startCamera());
         cameraDialog.show();
+    }
+
+    private void openReceiptGallery() {
+        galleryReceiptLauncher.launch("image/*");
     }
 
     private void startCamera() {
@@ -613,7 +645,7 @@ public class sellProduct extends BaseActivity {
             saveSale("Cash", isDelivery, deliveryName, deliveryPhone, deliveryAddress, deliveryPayment);
         } else {
             if (!receiptCaptured) {
-                Toast.makeText(this, "Please capture payment receipt first", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Please attach payment receipt first", Toast.LENGTH_SHORT).show();
                 return;
             }
             saveSale("E-Payment", isDelivery, deliveryName, deliveryPhone, deliveryAddress, deliveryPayment);
@@ -703,6 +735,11 @@ public class sellProduct extends BaseActivity {
         clearInputs();
         refreshCart();
         calculateTotalFromCart();
+
+        Intent i = new Intent(sellProduct.this, SellList.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(i);
+        finish();
     }
 
     private void clearInputs() {
@@ -712,6 +749,7 @@ public class sellProduct extends BaseActivity {
         tvChange.setText("Change: ₱0.00");
         discountPercent = 0;
         receiptCaptured = false;
+        galleryReceiptUri = null;
         tvReceiptStatus.setText("No receipt captured");
         rbWalkIn.setChecked(true);
         etDeliveryName.setText("");

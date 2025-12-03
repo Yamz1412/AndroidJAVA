@@ -1,20 +1,22 @@
 package com.app.SalesInventory;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 public class FirestoreManager {
     private static FirestoreManager instance;
-    private FirebaseFirestore db;
-    private FirebaseAuth auth;
+    private final FirebaseFirestore db;
+    private final FirebaseAuth auth;
     private String currentUserId;
 
     private FirestoreManager() {
         db = FirebaseFirestore.getInstance();
         auth = FirebaseAuth.getInstance();
-        if (auth.getCurrentUser() != null) {
-            currentUserId = auth.getCurrentUser().getUid();
+        FirebaseUser u = auth.getCurrentUser();
+        if (u != null) {
+            currentUserId = u.getUid();
         }
     }
 
@@ -38,8 +40,11 @@ public class FirestoreManager {
     }
 
     private String ensureCurrentUserId() {
-        if (currentUserId == null && auth.getCurrentUser() != null) {
-            currentUserId = auth.getCurrentUser().getUid();
+        if (currentUserId == null) {
+            FirebaseUser u = auth.getCurrentUser();
+            if (u != null) {
+                currentUserId = u.getUid();
+            }
         }
         return currentUserId == null ? "unknown" : currentUserId;
     }

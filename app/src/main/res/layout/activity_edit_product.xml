@@ -42,7 +42,7 @@
                 android:id="@+id/productNameET"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#000000"
+                android:textColor="?attr/colorOnBackground"
                 android:hint="Product Name"/>
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -50,7 +50,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Category"
-            android:textColor="#757575"
+            android:textColor="?attr/colorOnBackground"
             android:layout_marginBottom="4dp"/>
 
         <Spinner
@@ -58,13 +58,14 @@
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:background="@drawable/spinner_background"
-            android:layout_marginBottom="15dp"/>
+            android:layout_marginBottom="15dp"
+            android:popupTheme="@style/ThemeOverlay.AppCompat.Light"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Product Type"
-            android:textColor="#757575"
+            android:textColor="?attr/colorOnBackground"
             android:layout_marginBottom="4dp"/>
 
         <RadioGroup
@@ -79,14 +80,14 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Inventory"
-                android:textColor="#000000" />
+                android:textColor="?attr/colorOnBackground" />
 
             <RadioButton
                 android:id="@+id/rbMenuEdit"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Menu"
-                android:textColor="#000000"
+                android:textColor="?attr/colorOnBackground"
                 android:layout_marginStart="24dp" />
         </RadioGroup>
 
@@ -111,7 +112,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="numberDecimal"
-                    android:textColor="#000000"
+                    android:textColor="?attr/colorOnBackground"
                     android:hint="Cost Price"/>
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -129,7 +130,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="numberDecimal"
-                    android:textColor="#000000"
+                    android:textColor="?attr/colorOnBackground"
                     android:hint="Selling Price"/>
             </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
@@ -155,7 +156,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="number"
-                    android:textColor="#000000"
+                    android:textColor="?attr/colorOnBackground"
                     android:hint="Quantity"/>
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -172,7 +173,7 @@
                     android:id="@+id/unitET"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textColor="#000000"
+                    android:textColor="?attr/colorOnBackground"
                     android:hint="Unit (e.g. pcs)"/>
             </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
@@ -192,7 +193,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="number"
-                android:textColor="#000000"
+                android:textColor="?attr/colorOnBackground"
                 android:hint="Reorder Level"/>
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -213,7 +214,8 @@
                 android:layout_height="wrap_content"
                 android:focusable="false"
                 android:clickable="true"
-                android:textColor="#000000"
+                android:inputType="none"
+                android:textColor="?attr/colorOnBackground"
                 android:hint="Expiry Date (DD/MM/YYYY)"/>
         </com.google.android.material.textfield.TextInputLayout>
 

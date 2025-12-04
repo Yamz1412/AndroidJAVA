@@ -1,6 +1,7 @@
 package com.app.SalesInventory;
 
 import android.Manifest;
+import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -31,6 +32,7 @@ import com.google.firebase.database.ValueEventListener;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -57,6 +59,7 @@ public class AddProductActivity extends BaseActivity {
     private List<Category> categoryList = new ArrayList<>();
     private DatabaseReference categoryRef;
     private String selectedImagePath;
+    private Calendar expiryCalendar = Calendar.getInstance();
 
     private ActivityResultLauncher<Intent> imagePickerLauncher;
     private ActivityResultLauncher<String> permissionLauncher;
@@ -95,6 +98,8 @@ public class AddProductActivity extends BaseActivity {
         addBtn.setOnClickListener(v -> attemptAdd());
         cancelBtn.setOnClickListener(v -> finish());
         btnAddPhoto.setOnClickListener(v -> tryPickImage());
+
+        expiryDateET.setOnClickListener(v -> showExpiryDatePicker());
 
         updateLayoutForSelectedType();
     }
@@ -185,10 +190,31 @@ public class AddProductActivity extends BaseActivity {
         }
     }
 
+    private void showExpiryDatePicker() {
+        Calendar now = Calendar.getInstance();
+        int year = now.get(Calendar.YEAR);
+        int month = now.get(Calendar.MONTH);
+        int day = now.get(Calendar.DAY_OF_MONTH);
+
+        DatePickerDialog dialog = new DatePickerDialog(this, (view, y, m, d) -> {
+            expiryCalendar.set(Calendar.YEAR, y);
+            expiryCalendar.set(Calendar.MONTH, m);
+            expiryCalendar.set(Calendar.DAY_OF_MONTH, d);
+            Date date = expiryCalendar.getTime();
+            expiryDateET.setText(expiryFormat.format(date));
+        }, year, month, day);
+        dialog.getDatePicker().setMinDate(System.currentTimeMillis());
+        dialog.show();
+    }
+
     private void attemptAdd() {
         String name = productNameET.getText() != null ? productNameET.getText().toString().trim() : "";
         if (name.isEmpty()) {
             Toast.makeText(this, "Product name is required", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!name.matches("[A-Za-z ]+")) {
+            Toast.makeText(this, "Product name must contain only letters and spaces", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -230,6 +256,10 @@ public class AddProductActivity extends BaseActivity {
             try {
                 Date d = expiryFormat.parse(expiryStr);
                 if (d != null) expiryDate = d.getTime();
+                if (expiryDate < System.currentTimeMillis()) {
+                    Toast.makeText(this, "Expiry date must be today or in the future", Toast.LENGTH_SHORT).show();
+                    return;
+                }
             } catch (ParseException ignored) {
             }
         }

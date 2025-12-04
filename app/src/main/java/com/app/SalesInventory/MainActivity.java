@@ -138,9 +138,7 @@ public class MainActivity extends BaseActivity {
         });
 
         cardNearExpiry.setOnClickListener(v -> {
-            Intent i = new Intent(MainActivity.this, Inventory.class);
-            i.putExtra(Inventory.EXTRA_SHOW_NEAR_EXPIRY_ONLY, true);
-            startActivity(i);
+            startActivity(new Intent(MainActivity.this, NearExpiryItemsActivity.class));
         });
     }
 
@@ -229,8 +227,7 @@ public class MainActivity extends BaseActivity {
 
         if (cardLowStock != null) {
             cardLowStock.setOnClickListener(v -> {
-                Intent i = new Intent(MainActivity.this, Inventory.class);
-                i.putExtra(Inventory.EXTRA_SHOW_LOW_STOCK_ONLY, true);
+                Intent i = new Intent(MainActivity.this, LowStockItemsActivity.class);
                 startActivity(i);
             });
         }

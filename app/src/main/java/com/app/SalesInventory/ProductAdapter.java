@@ -1,5 +1,6 @@
 package com.app.SalesInventory;
 
+import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
@@ -60,18 +61,24 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
     @Override
     public void onBindViewHolder(@NonNull VH holder, int position) {
         Product p = items.get(position);
-        holder.name.setText(p.getProductName());
-        holder.category.setText(p.getCategoryName() == null ? "" : p.getCategoryName());
-        holder.quantityText.setText("Stock: " + p.getQuantity());
+        if (p == null) return;
+
+        holder.name.setText(p.getProductName() != null ? p.getProductName() : "");
+        holder.category.setText(p.getCategoryName() != null ? p.getCategoryName() : "");
+
+        int qty = p.getQuantity();
+        holder.quantityText.setText("Stock: " + qty);
+        holder.stockText.setText(String.valueOf(qty));
         holder.costPriceText.setText("Cost: ₱" + String.format(Locale.US, "%.2f", p.getCostPrice()));
-        holder.stockText.setText(String.valueOf(p.getQuantity()));
 
         String type = p.getProductType() == null ? "" : p.getProductType();
-        if ("Raw".equalsIgnoreCase(type)) {
-            holder.sellingPriceText.setVisibility(View.GONE);
-        } else {
-            holder.sellingPriceText.setVisibility(View.VISIBLE);
-            holder.sellingPriceText.setText("Selling: ₱" + String.format(Locale.US, "%.2f", p.getSellingPrice()));
+        if (holder.sellingPriceText != null) {
+            if ("Raw".equalsIgnoreCase(type)) {
+                holder.sellingPriceText.setVisibility(View.GONE);
+            } else {
+                holder.sellingPriceText.setVisibility(View.VISIBLE);
+                holder.sellingPriceText.setText("Selling: ₱" + String.format(Locale.US, "%.2f", p.getSellingPrice()));
+            }
         }
 
         String imageUrl = p.getImageUrl();
@@ -108,15 +115,16 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
             new AlertDialog.Builder(ctx)
                     .setTitle("Delete Product")
                     .setMessage("Delete " + p.getProductName() + "?")
-                    .setPositiveButton("Delete", (dialog, which) -> repository.deleteProduct(p.getProductId(), new ProductRepository.OnProductDeletedListener() {
-                        @Override
-                        public void onProductDeleted() {
-                        }
+                    .setPositiveButton("Delete", (dialog, which) ->
+                            repository.deleteProduct(p.getProductId(), new ProductRepository.OnProductDeletedListener() {
+                                @Override
+                                public void onProductDeleted() {
+                                }
 
-                        @Override
-                        public void onError(String error) {
-                        }
-                    }))
+                                @Override
+                                public void onError(String error) {
+                                }
+                            }))
                     .setNegativeButton("Cancel", null)
                     .show();
             return true;
@@ -128,13 +136,14 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
                 @Override
                 public void onProductUpdated() {
                     p.setQuantity(newQty);
-                    if (ctx instanceof android.app.Activity) {
-                        ((android.app.Activity) ctx).runOnUiThread(() -> {
+                    if (ctx instanceof Activity) {
+                        ((Activity) ctx).runOnUiThread(() -> {
                             holder.stockText.setText(String.valueOf(newQty));
                             holder.quantityText.setText("Stock: " + newQty);
                         });
                     }
                 }
+
                 @Override
                 public void onError(String error) {
                 }
@@ -149,13 +158,14 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
                 @Override
                 public void onProductUpdated() {
                     p.setQuantity(newQty);
-                    if (ctx instanceof android.app.Activity) {
-                        ((android.app.Activity) ctx).runOnUiThread(() -> {
+                    if (ctx instanceof Activity) {
+                        ((Activity) ctx).runOnUiThread(() -> {
                             holder.stockText.setText(String.valueOf(newQty));
                             holder.quantityText.setText("Stock: " + newQty);
                         });
                     }
                 }
+
                 @Override
                 public void onError(String error) {
                 }

@@ -28,7 +28,7 @@ import java.util.Locale;
 public class CreatePurchaseOrderActivity extends BaseActivity  {
 
     private Toolbar toolbar;
-    private TextInputEditText etSupplierName, etOrderDate, etExpectedDate, etNotes;
+    private TextInputEditText etSupplierName, etSupplierPhone, etOrderDate, etExpectedDate, etNotes;
     private RecyclerView recyclerViewItems;
     private TextView tvTotalAmount;
     private Button btnAddItem, btnCreatePO;
@@ -62,6 +62,7 @@ public class CreatePurchaseOrderActivity extends BaseActivity  {
     private void initializeViews() {
         toolbar = findViewById(R.id.toolbar);
         etSupplierName = findViewById(R.id.etSupplierName);
+        etSupplierPhone = findViewById(R.id.etSupplierPhone);
         etOrderDate = findViewById(R.id.etOrderDate);
         etExpectedDate = findViewById(R.id.etExpectedDate);
         etNotes = findViewById(R.id.etNotes);
@@ -105,12 +106,19 @@ public class CreatePurchaseOrderActivity extends BaseActivity  {
     }
 
     private void showDatePicker(final EditText editText) {
-        new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
-            calendar.set(Calendar.YEAR, year);
-            calendar.set(Calendar.MONTH, month);
-            calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+        Calendar now = Calendar.getInstance();
+        int year = now.get(Calendar.YEAR);
+        int month = now.get(Calendar.MONTH);
+        int day = now.get(Calendar.DAY_OF_MONTH);
+
+        DatePickerDialog dialog = new DatePickerDialog(this, (view, y, m, d) -> {
+            calendar.set(Calendar.YEAR, y);
+            calendar.set(Calendar.MONTH, m);
+            calendar.set(Calendar.DAY_OF_MONTH, d);
             updateDateLabel(editText);
-        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show();
+        }, year, month, day);
+        dialog.getDatePicker().setMinDate(System.currentTimeMillis());
+        dialog.show();
     }
 
     private void updateDateLabel(EditText editText) {
@@ -127,55 +135,69 @@ public class CreatePurchaseOrderActivity extends BaseActivity  {
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
-        Spinner spinnerProduct = view.findViewById(R.id.spinnerProduct);
+
+        TextInputEditText etProductName = view.findViewById(R.id.etProductName);
         TextInputEditText etQuantity = view.findViewById(R.id.etQuantity);
         TextInputEditText etUnitPrice = view.findViewById(R.id.etUnitPrice);
         Button btnAdd = view.findViewById(R.id.btnAdd);
         Button btnCancel = view.findViewById(R.id.btnCancel);
-        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, productNames);
-        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerProduct.setAdapter(spinnerAdapter);
+
         btnAdd.setOnClickListener(v -> {
+            String nameStr = etProductName.getText() != null ? etProductName.getText().toString().trim() : "";
             String qtyStr = etQuantity.getText() != null ? etQuantity.getText().toString().trim() : "";
             String priceStr = etUnitPrice.getText() != null ? etUnitPrice.getText().toString().trim() : "";
-            if (spinnerProduct.getSelectedItem() == null) {
-                Toast.makeText(this, "Please select a product", Toast.LENGTH_SHORT).show();
+
+            if (nameStr.isEmpty()) {
+                Toast.makeText(this, "Please enter product name", Toast.LENGTH_SHORT).show();
                 return;
             }
-            if (!qtyStr.isEmpty() && !priceStr.isEmpty()) {
-                try {
-                    int qty = Integer.parseInt(qtyStr);
-                    double price = Double.parseDouble(priceStr);
-                    int pos = spinnerProduct.getSelectedItemPosition();
-                    if (pos < 0 || pos >= availableProducts.size()) {
-                        Toast.makeText(this, "Invalid product", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    Product p = availableProducts.get(pos);
-                    POItem existing = null;
-                    for (POItem it : poItems) {
-                        if (it.getProductId().equals(p.getProductId())) {
-                            existing = it;
-                            break;
-                        }
-                    }
-                    if (existing != null) {
-                        existing.setQuantity(existing.getQuantity() + qty);
-                    } else {
-                        poItems.add(new POItem(p.getProductId(), p.getProductName(), qty, price));
-                    }
-                    adapter.notifyDataSetChanged();
-                    calculateTotal();
-                    dialog.dismiss();
-                } catch (NumberFormatException e) {
-                    Toast.makeText(this, "Invalid number format", Toast.LENGTH_SHORT).show();
+            if (qtyStr.isEmpty() || priceStr.isEmpty()) {
+                Toast.makeText(this, "Please fill quantity and unit price", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            try {
+                int qty = Integer.parseInt(qtyStr);
+                double price = Double.parseDouble(priceStr);
+                if (qty <= 0 || price < 0) {
+                    Toast.makeText(this, "Invalid quantity or price", Toast.LENGTH_SHORT).show();
+                    return;
                 }
-            } else {
-                Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+
+                String productId = findProductIdByName(nameStr);
+                POItem existing = null;
+                for (POItem it : poItems) {
+                    if (it.getProductName().equalsIgnoreCase(nameStr)) {
+                        existing = it;
+                        break;
+                    }
+                }
+                if (existing != null) {
+                    existing.setQuantity(existing.getQuantity() + qty);
+                    existing.setUnitPrice(price);
+                } else {
+                    poItems.add(new POItem(productId, nameStr, qty, price));
+                }
+                adapter.notifyDataSetChanged();
+                calculateTotal();
+                dialog.dismiss();
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "Invalid number format", Toast.LENGTH_SHORT).show();
             }
         });
+
         btnCancel.setOnClickListener(v -> dialog.dismiss());
         dialog.show();
+    }
+
+    private String findProductIdByName(String name) {
+        if (availableProducts == null) return "";
+        for (Product p : availableProducts) {
+            if (p.getProductName() != null && p.getProductName().equalsIgnoreCase(name)) {
+                return p.getProductId();
+            }
+        }
+        return "";
     }
 
     private void calculateTotal() {
@@ -188,6 +210,7 @@ public class CreatePurchaseOrderActivity extends BaseActivity  {
 
     private void savePurchaseOrder() {
         String supplier = etSupplierName.getText().toString().trim();
+        String supplierPhone = etSupplierPhone.getText() != null ? etSupplierPhone.getText().toString().trim() : "";
 
         if (supplier.isEmpty()) {
             etSupplierName.setError("Supplier name required");
@@ -214,6 +237,7 @@ public class CreatePurchaseOrderActivity extends BaseActivity  {
                 id,
                 poNumber,
                 supplier,
+                supplierPhone,
                 "Pending",
                 System.currentTimeMillis(),
                 total,

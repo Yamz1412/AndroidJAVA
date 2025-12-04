@@ -22,6 +22,7 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -80,6 +81,7 @@ public class sellProduct extends BaseActivity {
     private AlertDialog cameraDialog;
     private PreviewView previewView;
     private ImageCapture imageCapture;
+    private ImageView imgReceiptPreview;
     private CameraSelector cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA;
     private Camera camera;
     private boolean flashOn = false;
@@ -128,6 +130,7 @@ public class sellProduct extends BaseActivity {
         layoutEPaymentSection = findViewById(R.id.layoutEPaymentSection);
         btnCaptureReceipt = findViewById(R.id.btnCaptureReceipt);
         tvReceiptStatus = findViewById(R.id.tvReceiptStatus);
+        imgReceiptPreview = findViewById(R.id.imgReceiptPreview);
 
         rgDeliveryType = findViewById(R.id.rgDeliveryType);
         rbWalkIn = findViewById(R.id.rbWalkIn);
@@ -160,6 +163,10 @@ public class sellProduct extends BaseActivity {
                         galleryReceiptUri = uri;
                         receiptCaptured = true;
                         tvReceiptStatus.setText("Receipt from gallery");
+                        if (imgReceiptPreview != null) {
+                            imgReceiptPreview.setVisibility(View.VISIBLE);
+                            imgReceiptPreview.setImageURI(uri);
+                        }
                         Toast.makeText(this, "Receipt selected from gallery", Toast.LENGTH_SHORT).show();
                     }
                 }
@@ -582,6 +589,10 @@ public class sellProduct extends BaseActivity {
         }
         receiptCaptured = true;
         tvReceiptStatus.setText("Receipt captured");
+        if (imgReceiptPreview != null) {
+            imgReceiptPreview.setVisibility(View.VISIBLE);
+            imgReceiptPreview.setImageResource(R.drawable.ic_image_placeholder);
+        }
         Toast.makeText(this, "Receipt captured", Toast.LENGTH_SHORT).show();
         if (cameraDialog != null) cameraDialog.dismiss();
     }
@@ -757,6 +768,11 @@ public class sellProduct extends BaseActivity {
         etDeliveryAddress.setText("");
         rbDeliveryCOD.setChecked(true);
         layoutDeliveryDetails.setVisibility(View.GONE);
+
+        if (imgReceiptPreview != null) {
+            imgReceiptPreview.setVisibility(View.GONE);
+            imgReceiptPreview.setImageDrawable(null);
+        }
     }
 
     @Override

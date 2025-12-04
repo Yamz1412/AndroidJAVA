@@ -6,6 +6,7 @@ public class PurchaseOrder {
     private String poId;
     private String poNumber;
     private String supplierName;
+    private String supplierPhone;
     private String status;
     private long orderDate;
     private double totalAmount;
@@ -14,10 +15,11 @@ public class PurchaseOrder {
     public PurchaseOrder() {
     }
 
-    public PurchaseOrder(String poId, String poNumber, String supplierName, String status, long orderDate, double totalAmount, List<POItem> items) {
+    public PurchaseOrder(String poId, String poNumber, String supplierName, String supplierPhone, String status, long orderDate, double totalAmount, List<POItem> items) {
         this.poId = poId;
         this.poNumber = poNumber;
         this.supplierName = supplierName;
+        this.supplierPhone = supplierPhone;
         this.status = status;
         this.orderDate = orderDate;
         this.totalAmount = totalAmount;
@@ -46,6 +48,14 @@ public class PurchaseOrder {
 
     public void setSupplierName(String supplierName) {
         this.supplierName = supplierName;
+    }
+
+    public String getSupplierPhone() {
+        return supplierPhone;
+    }
+
+    public void setSupplierPhone(String supplierPhone) {
+        this.supplierPhone = supplierPhone;
     }
 
     public String getStatus() {

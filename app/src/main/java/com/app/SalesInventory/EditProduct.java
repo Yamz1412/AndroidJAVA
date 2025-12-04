@@ -121,18 +121,23 @@ public class EditProduct extends BaseActivity {
 
     private void showDatePicker() {
         long initial = currentProduct != null ? currentProduct.getExpiryDate() : 0L;
-        if (initial > 0) {
+        if (initial > 0 && initial >= System.currentTimeMillis()) {
             calendar.setTimeInMillis(initial);
         } else {
             calendar.setTimeInMillis(System.currentTimeMillis());
         }
-        DatePickerDialog dialog = new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
-            calendar.set(Calendar.YEAR, year);
-            calendar.set(Calendar.MONTH, month);
-            calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
-            Date d = calendar.getTime();
-            expiryDateET.setText(expiryFormat.format(d));
-        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+        int year = calendar.get(Calendar.YEAR);
+        int month = calendar.get(Calendar.MONTH);
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+        DatePickerDialog dialog = new DatePickerDialog(this, (view, y, m, d) -> {
+            calendar.set(Calendar.YEAR, y);
+            calendar.set(Calendar.MONTH, m);
+            calendar.set(Calendar.DAY_OF_MONTH, d);
+            Date date = calendar.getTime();
+            expiryDateET.setText(expiryFormat.format(date));
+        }, year, month, day);
+        dialog.getDatePicker().setMinDate(System.currentTimeMillis());
         dialog.show();
     }
 
@@ -143,6 +148,7 @@ public class EditProduct extends BaseActivity {
                 currentProduct = product;
                 runOnUiThread(() -> populateFields());
             }
+
             @Override
             public void onError(String error) {
             }
@@ -157,8 +163,10 @@ public class EditProduct extends BaseActivity {
             quantityET.setText(String.valueOf(currentProduct.getQuantity()));
             unitET.setText(currentProduct.getUnit());
             minStockET.setText(String.valueOf(currentProduct.getReorderLevel()));
-            if (currentProduct.getExpiryDate() > 0) {
+            if (currentProduct.getExpiryDate() > 0 && currentProduct.getExpiryDate() >= System.currentTimeMillis()) {
                 expiryDateET.setText(expiryFormat.format(new Date(currentProduct.getExpiryDate())));
+            } else {
+                expiryDateET.setText("");
             }
 
             String imagePath = currentProduct.getImagePath();
@@ -220,6 +228,12 @@ public class EditProduct extends BaseActivity {
                 try {
                     Date d = expiryFormat.parse(expiryStr);
                     if (d != null) expiry = d.getTime();
+                    if (expiry < System.currentTimeMillis()) {
+                        Toast.makeText(this, "Expiry date must be today or in the future", Toast.LENGTH_SHORT).show();
+                        updateBtn.setEnabled(true);
+                        updateBtn.setText("Update Product");
+                        return;
+                    }
                 } catch (ParseException ignored) {
                 }
             }
@@ -248,6 +262,7 @@ public class EditProduct extends BaseActivity {
                     navigateBackAfterUpdate();
                 });
             }
+
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
@@ -276,6 +291,10 @@ public class EditProduct extends BaseActivity {
         String name = productNameET.getText().toString().trim();
         if (name.isEmpty()) {
             Toast.makeText(this, "Product name is required", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (!name.matches("[A-Za-z ]+")) {
+            Toast.makeText(this, "Product name must contain only letters and spaces", Toast.LENGTH_SHORT).show();
             return false;
         }
 

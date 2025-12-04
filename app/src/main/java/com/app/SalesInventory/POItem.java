@@ -20,8 +20,16 @@ public class POItem {
         return productId;
     }
 
+    public void setProductId(String productId) {
+        this.productId = productId;
+    }
+
     public String getProductName() {
         return productName;
+    }
+
+    public void setProductName(String productName) {
+        this.productName = productName;
     }
 
     public int getQuantity() {
@@ -36,7 +44,11 @@ public class POItem {
         return unitPrice;
     }
 
+    public void setUnitPrice(double unitPrice) {
+        this.unitPrice = unitPrice;
+    }
+
     public double getSubtotal() {
-        return quantity * unitPrice;
+        return unitPrice * quantity;
     }
 }

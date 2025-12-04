@@ -1,5 +1,7 @@
 package com.app.SalesInventory;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -18,8 +20,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -46,6 +50,11 @@ public class Reports extends BaseActivity  {
     private ReportAdapter adapter;
     private List<ReportItem> reportItems;
 
+    private File lastGeneratedFile;
+    private String lastGeneratedMimeType;
+
+    private ActivityResultLauncher<Intent> saveFileLauncher;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -54,6 +63,7 @@ public class Reports extends BaseActivity  {
         salesRepository = SalesInventoryApplication.getSalesRepository();
         authManager = AuthManager.getInstance();
         initializeUI();
+        setupSaveLauncher();
         setupListeners();
         loadData();
     }
@@ -72,6 +82,20 @@ public class Reports extends BaseActivity  {
         reportItems = new ArrayList<>();
         adapter = new ReportAdapter(this, reportItems);
         reportsListView.setAdapter(adapter);
+    }
+
+    private void setupSaveLauncher() {
+        saveFileLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null && lastGeneratedFile != null) {
+                        Uri uri = result.getData().getData();
+                        if (uri != null) {
+                            copyFileToUri(lastGeneratedFile, uri);
+                        }
+                    }
+                }
+        );
     }
 
     private void setupListeners() {
@@ -185,7 +209,9 @@ public class Reports extends BaseActivity  {
             String csvNameInventory = exportUtil.generateFileName("InventoryReport", ReportExportUtil.EXPORT_CSV);
             File invFile = new File(exportDir, csvNameInventory);
             writeInventoryCsv(invFile);
-            shareFile(invFile, "text/csv");
+            lastGeneratedFile = invFile;
+            lastGeneratedMimeType = "text/csv";
+            promptUserToSaveFile(invFile.getName(), "text/csv");
         } catch (Exception e) {
             new ReportExportUtil(this).showExportError("Inventory export failed: " + e.getMessage());
         }
@@ -193,7 +219,9 @@ public class Reports extends BaseActivity  {
             String csvNameSales = exportUtil.generateFileName("SalesReport", ReportExportUtil.EXPORT_CSV);
             File salesFile = new File(exportDir, csvNameSales);
             writeSalesCsv(salesFile);
-            shareFile(salesFile, "text/csv");
+            lastGeneratedFile = salesFile;
+            lastGeneratedMimeType = "text/csv";
+            promptUserToSaveFile(salesFile.getName(), "text/csv");
         } catch (Exception e) {
             new ReportExportUtil(this).showExportError("Sales export failed: " + e.getMessage());
         }
@@ -201,7 +229,9 @@ public class Reports extends BaseActivity  {
             String csvNameJournal = exportUtil.generateFileName("SalesJournal_Report", ReportExportUtil.EXPORT_CSV);
             File journalFile = new File(exportDir, csvNameJournal);
             writeSalesJournalCsv(journalFile);
-            shareFile(journalFile, "text/csv");
+            lastGeneratedFile = journalFile;
+            lastGeneratedMimeType = "text/csv";
+            promptUserToSaveFile(journalFile.getName(), "text/csv");
         } catch (Exception e) {
             new ReportExportUtil(this).showExportError("Sales journal export failed: " + e.getMessage());
         }
@@ -255,7 +285,9 @@ public class Reports extends BaseActivity  {
                     deliverySalesAmount
             );
 
-            shareFile(pdfFile, "application/pdf");
+            lastGeneratedFile = pdfFile;
+            lastGeneratedMimeType = "application/pdf";
+            promptUserToSaveFile(pdfFile.getName(), "application/pdf");
         } catch (Exception e) {
             new ReportExportUtil(this).showExportError("Overall PDF export failed: " + e.getMessage());
         }
@@ -382,6 +414,38 @@ public class Reports extends BaseActivity  {
             startActivity(Intent.createChooser(shareIntent, "Share report"));
         } catch (Exception e) {
             new ReportExportUtil(this).showExportError("Share failed: " + e.getMessage());
+        }
+    }
+
+    private void promptUserToSaveFile(String suggestedName, String mimeType) {
+        if (lastGeneratedFile == null) return;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType(mimeType);
+        intent.putExtra(Intent.EXTRA_TITLE, suggestedName);
+        saveFileLauncher.launch(intent);
+    }
+
+    private void copyFileToUri(File source, Uri destUri) {
+        try {
+            FileInputStream in = new FileInputStream(source);
+            OutputStream out = getContentResolver().openOutputStream(destUri);
+            if (out == null) {
+                new ReportExportUtil(this).showExportError("Unable to open destination");
+                in.close();
+                return;
+            }
+            byte[] buffer = new byte[8192];
+            int len;
+            while ((len = in.read(buffer)) > 0) {
+                out.write(buffer, 0, len);
+            }
+            out.flush();
+            in.close();
+            out.close();
+            new ReportExportUtil(this).showExportSuccess(destUri.getPath());
+        } catch (Exception e) {
+            new ReportExportUtil(this).showExportError("Save failed: " + e.getMessage());
         }
     }
 

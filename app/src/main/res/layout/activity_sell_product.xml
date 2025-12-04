@@ -272,8 +272,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Change: ₱0.00"
-                        android:textSize="13sp"
-                        android:textColor="@color/textColorSecondary"
+                        android:textSize="20sp"
+                        android:textColor="@color/primary"
                         android:layout_marginTop="4dp" />
                 </LinearLayout>
 
@@ -303,13 +303,32 @@
                         android:textColor="@color/textColorSecondary"
                         android:layout_marginBottom="8dp" />
 
-                    <Button
-                        android:id="@+id/btnCaptureReceipt"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Capture Receipt"
-                        android:backgroundTint="@color/colorPrimary"
-                        android:textColor="@color/white" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <Button
+                            android:id="@+id/btnCaptureReceipt"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:text="Capture Receipt"
+                            android:backgroundTint="@color/colorPrimary"
+                            android:textColor="@color/white" />
+
+                        <ImageView
+                            android:id="@+id/imgReceiptPreview"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginStart="12dp"
+                            android:scaleType="centerCrop"
+                            android:src="@drawable/ic_image_placeholder"
+                            android:background="@drawable/edite_round"
+                            android:padding="4dp"
+                            android:visibility="gone" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/tvReceiptStatus"

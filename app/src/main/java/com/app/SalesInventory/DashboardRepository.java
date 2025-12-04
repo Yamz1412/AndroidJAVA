@@ -139,10 +139,11 @@ public class DashboardRepository {
         return entries;
     }
 
-    public List<BarEntry> getTopProductsData(List<Sales> allSales) {
+    public TopProductsResult getTopProductsData(List<Sales> allSales, List<Product> allProducts) {
         List<BarEntry> entries = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
         if (allSales == null || allSales.isEmpty()) {
-            return entries;
+            return new TopProductsResult(entries, labels);
         }
 
         Map<String, Integer> productQty = new HashMap<>();
@@ -154,16 +155,30 @@ public class DashboardRepository {
             productQty.put(productId, (current != null ? current : 0) + qty);
         }
 
+        Map<String, String> idToName = new HashMap<>();
+        if (allProducts != null) {
+            for (Product p : allProducts) {
+                if (p.getProductId() != null && p.getProductName() != null) {
+                    idToName.put(p.getProductId(), p.getProductName());
+                }
+            }
+        }
+
         List<Map.Entry<String, Integer>> sorted = new ArrayList<>(productQty.entrySet());
         Collections.sort(sorted, (a, b) -> Integer.compare(b.getValue(), a.getValue()));
         int max = Math.min(5, sorted.size());
 
         for (int i = 0; i < max; i++) {
             Map.Entry<String, Integer> e = sorted.get(i);
-            entries.add(new BarEntry(i, e.getValue()));
+            String productId = e.getKey();
+            int qty = e.getValue();
+            entries.add(new BarEntry(i, qty));
+            String name = idToName.get(productId);
+            if (name == null || name.isEmpty()) name = productId;
+            labels.add(name);
         }
 
-        return entries;
+        return new TopProductsResult(entries, labels);
     }
 
     public int[] getInventoryStatusBreakdown(List<Product> products) {

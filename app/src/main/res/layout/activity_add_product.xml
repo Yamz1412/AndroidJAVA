@@ -59,11 +59,13 @@
             android:backgroundTint="@color/LightBlue"
             android:layout_marginBottom="15dp"
             android:padding="5dp">
+
             <Spinner
                 android:id="@+id/categorySpinner"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:spinnerMode="dropdown" />
+                android:spinnerMode="dropdown"
+                android:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
         </LinearLayout>
 
         <TextView
@@ -115,6 +117,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="5dp"
                     android:layout_marginBottom="15dp">
+
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/costPriceET"
                         android:layout_width="match_parent"
@@ -131,6 +134,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="5dp"
                     android:layout_marginBottom="15dp">
+
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/minStockET"
                         android:layout_width="match_parent"
@@ -146,6 +150,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="15dp">
+
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/quantityET"
                     android:layout_width="match_parent"
@@ -160,6 +165,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="15dp">
+
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/unitET"
                     android:layout_width="match_parent"
@@ -174,6 +180,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="15dp">
+
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/sellingPriceET"
                 android:layout_width="match_parent"
@@ -188,11 +195,14 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="25dp">
+
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/expiryDateET"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="date"
+                android:focusable="false"
+                android:clickable="true"
+                android:inputType="none"
                 android:textColor="?attr/colorOnBackground"
                 android:hint="Expiry Date (optional, DD/MM/YYYY)" />
         </com.google.android.material.textfield.TextInputLayout>

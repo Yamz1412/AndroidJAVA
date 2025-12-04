@@ -51,6 +51,16 @@
             android:windowSoftInputMode="adjustResize|stateHidden" />
 
         <activity
+            android:name=".LowStockItemsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
+
+        <activity
+            android:name=".NearExpiryItemsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
+
+        <activity
             android:name=".WaitingVerificationActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize|stateHidden" />

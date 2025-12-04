@@ -85,18 +85,11 @@ public class DashboardViewModel extends AndroidViewModel {
     }
 
     public void loadRecentActivities() {
-        executorService.execute(() -> {
-            try {
-                repository.getRecentActivities(10, new DashboardRepository.OnActivitiesLoadedListener() {
-                    @Override
-                    public void onActivitiesLoaded(List<RecentActivity> activities) {
-                        recentActivities.postValue(activities);
-                    }
-                });
-            } catch (Exception e) {
-                errorMessage.postValue("Error loading activities: " + e.getMessage());
-            }
-        });
+        try {
+            repository.getRecentActivities(10, activities -> recentActivities.postValue(activities));
+        } catch (Exception e) {
+            errorMessage.postValue("Error loading activities: " + e.getMessage());
+        }
     }
 
     public void loadChartData(LineChart salesTrendChart, BarChart topProductsChart, PieChart inventoryStatusChart) {
@@ -109,14 +102,16 @@ public class DashboardViewModel extends AndroidViewModel {
                 List<Product> products = productsLive.getValue();
 
                 List<Entry> salesTrendEntries = repository.getSalesTrendData(allSales);
-                List<BarEntry> topProductEntries = repository.getTopProductsData(allSales);
+                TopProductsResult topProductsResult = repository.getTopProductsData(allSales, products);
+                List<BarEntry> topProductEntries = topProductsResult.getEntries();
+                List<String> topProductNames = topProductsResult.getProductNames();
                 int[] invStatus = repository.getInventoryStatusBreakdown(products);
 
                 if (salesTrendChart != null) {
                     setupSalesTrendChart(salesTrendChart, salesTrendEntries);
                 }
                 if (topProductsChart != null) {
-                    setupTopProductsChart(topProductsChart, topProductEntries);
+                    setupTopProductsChart(topProductsChart, topProductEntries, topProductNames);
                 }
                 if (inventoryStatusChart != null) {
                     setupInventoryStatusChart(inventoryStatusChart, invStatus);
@@ -160,24 +155,45 @@ public class DashboardViewModel extends AndroidViewModel {
         });
     }
 
-    private void setupTopProductsChart(BarChart chart, List<BarEntry> entries) {
+    private void setupTopProductsChart(BarChart chart, List<BarEntry> entries, List<String> labels) {
         if (entries == null) entries = new ArrayList<>();
+        if (labels == null) labels = new ArrayList<>();
+
         BarDataSet dataSet = new BarDataSet(entries, "Top Products (Qty Sold)");
         dataSet.setColor(Color.parseColor("#4ECDC4"));
         dataSet.setValueTextColor(Color.BLACK);
         dataSet.setValueTextSize(9f);
         BarData data = new BarData(dataSet);
         data.setBarWidth(0.6f);
+
         List<BarEntry> finalEntries = entries;
+        List<String> finalLabels = new ArrayList<>(labels);
+
         chart.post(() -> {
             chart.setData(data);
-            chart.getXAxis().setDrawGridLines(false);
             chart.getAxisLeft().setDrawGridLines(false);
             chart.getAxisRight().setDrawGridLines(false);
             chart.getLegend().setEnabled(true);
             chart.setTouchEnabled(true);
             chart.setDragEnabled(true);
             chart.setScaleEnabled(true);
+
+            com.github.mikephil.charting.components.XAxis xAxis = chart.getXAxis();
+            xAxis.setGranularity(1f);
+            xAxis.setPosition(com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM);
+            xAxis.setDrawGridLines(false);
+
+            xAxis.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
+                @Override
+                public String getAxisLabel(float value, com.github.mikephil.charting.components.AxisBase axis) {
+                    int index = (int) value;
+                    if (index >= 0 && index < finalLabels.size()) {
+                        return finalLabels.get(index);
+                    }
+                    return "";
+                }
+            });
+
             chart.getDescription().setText(finalEntries.isEmpty() ? "No sales data" : "Top selling products");
             chart.invalidate();
         });

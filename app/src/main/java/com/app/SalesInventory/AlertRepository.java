@@ -248,20 +248,26 @@ public class AlertRepository {
                     listener.onError(e.getMessage());
                 });
     }
+    public void deleteAlert(String alertId) {
+        if (!firestoremanagerIsReady() || alertId == null) return;
+        String ownerId = firestoreManager.getBusinessOwnerId();
+        firestoreManager.getDb().collection("alerts").document(ownerId)
+                .collection("items").document(alertId)
+                .delete()
+                .addOnSuccessListener(aVoid -> Log.d(TAG, "Alert deleted"))
+                .addOnFailureListener(e -> Log.e(TAG, "Error deleting alert", e));
+    }
 
-    public void deleteAlert(String alertId, OnAlertDeletedListener listener) {
-        if (!firestoremanagerIsReady()) {
-            listener.onError("User not authenticated");
-            return;
-        }
-        firestoreManager.getDb().collection(firestoreManager.getUserAlertsPath()).document(alertId).delete()
-                .addOnSuccessListener(aVoid -> {
-                    listener.onAlertDeleted();
-                    Log.d(TAG, "Alert deleted: " + alertId);
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error deleting alert", e);
-                    listener.onError(e.getMessage());
+    public void clearAllAlerts() {
+        if (!firestoremanagerIsReady()) return;
+        String ownerId = firestoreManager.getBusinessOwnerId();
+        firestoreManager.getDb().collection("alerts").document(ownerId)
+                .collection("items").get().addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        for (DocumentSnapshot doc : task.getResult()) {
+                            doc.getReference().delete();
+                        }
+                    }
                 });
     }
 

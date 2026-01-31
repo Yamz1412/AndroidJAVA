@@ -17,7 +17,8 @@
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -150,6 +151,7 @@
                     android:layout_height="wrap_content"
                     android:text="Add Item"
                     android:textColor="@color/white"
+                    android:backgroundTint="@color/blue"
                     style="@style/CustomButton" />
 
             </LinearLayout>
@@ -179,7 +181,7 @@
                     android:text="Total Amount:"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="@color/textColorPrimary" />
+                    android:textColor="@color/colorPrimary" />
 
                 <TextView
                     android:id="@+id/tvTotalAmount"
@@ -203,6 +205,7 @@
         android:layout_margin="16dp"
         android:text="CREATE PURCHASE ORDER"
         android:textColor="@color/white"
+        android:backgroundTint="@color/blue"
         android:padding="16dp"
         style="@style/CustomButton" />
 

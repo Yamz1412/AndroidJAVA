@@ -22,6 +22,7 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.RadioButton;
@@ -241,6 +242,13 @@ public class sellProduct extends BaseActivity {
                 TextView tvDetails = convertView.findViewById(R.id.tvCartDetails);
                 TextView tvQty = convertView.findViewById(R.id.tvCartQty);
                 TextView tvLineTotal = convertView.findViewById(R.id.tvCartLineTotal);
+                ImageButton btnRemove = convertView.findViewById(R.id.btnRemoveItem);
+
+                btnRemove.setOnClickListener(v -> {
+                    cartManager.removeItemById(item.productId);
+                    refreshCart();
+                    calculateTotalFromCart();
+                });
 
                 tvName.setText(item.productName);
                 String detailText = "";
@@ -721,6 +729,14 @@ public class sellProduct extends BaseActivity {
             deliveryAddress = "";
             deliveryPayment = "";
         }
+
+        Toast.makeText(this, "Sale recorded successfully", Toast.LENGTH_SHORT).show();
+        cartManager.clear();
+
+        Intent intent = new Intent(sellProduct.this, SellList.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
+        finish();
 
         double subtotal = cartManager.getSubtotal();
         for (CartManager.CartItem item : items) {

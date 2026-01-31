@@ -72,8 +72,15 @@ public class CartManager {
         }
     }
 
-    public synchronized void removeItem(CartItem target) {
-        items.remove(target);
+    public synchronized void removeItemById(String productId) {
+        Iterator<CartItem> iterator = items.iterator();
+        while (iterator.hasNext()) {
+            CartItem item = iterator.next();
+            if (item.productId.equals(productId)) {
+                iterator.remove();
+                return;
+            }
+        }
     }
 
     public synchronized double getSubtotal() {

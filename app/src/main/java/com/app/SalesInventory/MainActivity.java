@@ -307,50 +307,46 @@ public class MainActivity extends BaseActivity {
     public void onNotificationsClicked(View view) {
         AlertRepository repo = AlertRepository.getInstance(getApplication());
         List<Alert> alerts = repo.getUnreadAlerts().getValue();
+
         if (alerts == null || alerts.isEmpty()) {
-            new AlertDialog.Builder(this)
-                    .setTitle("Notifications")
-                    .setMessage("No new notifications")
-                    .setPositiveButton("OK", null)
-                    .show();
+            new AlertDialog.Builder(this).setTitle("Notifications").setMessage("No new notifications").setPositiveButton("OK", null).show();
             return;
         }
-        List<Alert> toShow = new ArrayList<>();
-        for (Alert a : alerts) {
-            if (a == null) continue;
-            String t = a.getType() == null ? "" : a.getType();
-            if (t.startsWith("EXPIRY") || "EXPIRED".equals(t) || "LOW_STOCK".equals(t) || "CRITICAL_STOCK".equals(t) || "FLOOR_STOCK".equals(t) || t.startsWith("PO_")) {
-                toShow.add(a);
-            } else {
-                toShow.add(a);
-            }
+
+        String[] items = new String[alerts.size()];
+        for (int i = 0; i < alerts.size(); i++) {
+            Alert a = alerts.get(i);
+            items[i] = (a.getType() != null ? a.getType() : "Alert") + " - " + a.getMessage();
         }
-        String[] items = new String[toShow.size()];
-        for (int i = 0; i < toShow.size(); i++) {
-            Alert a = toShow.get(i);
-            String t = a.getType() == null ? "" : a.getType();
-            String m = a.getMessage() == null ? "" : a.getMessage();
-            if ("LOW_STOCK".equals(t)) items[i] = "Low stock - " + m;
-            else if ("CRITICAL_STOCK".equals(t)) items[i] = "Critical stock - " + m;
-            else if ("FLOOR_STOCK".equals(t)) items[i] = "Floor level - " + m;
-            else if (t.startsWith("EXPIRY") || "EXPIRED".equals(t)) items[i] = "Expiry - " + m;
-            else if (t.startsWith("PO_")) items[i] = "Purchase Order - " + m;
-            else items[i] = (t.isEmpty() ? m : t + " - " + m);
-        }
+
         AlertDialog.Builder listDialog = new AlertDialog.Builder(this);
         listDialog.setTitle("Notifications");
-        listDialog.setItems(items, (d, which) -> showAlertDetail(toShow.get(which)));
+        listDialog.setItems(items, (d, which) -> showAlertDetail(alerts.get(which)));
+
+        listDialog.setNeutralButton("Clear All", (dialog, which) -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("Confirm Clear")
+                    .setMessage("Permanently delete all notifications?")
+                    .setPositiveButton("Clear All", (d, w) -> repo.clearAllAlerts())
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
+
         listDialog.setNegativeButton("Close", null);
         AlertDialog dialog = listDialog.create();
-        dialog.setOnDismissListener(dialogInterface -> {
-            for (Alert a : toShow) {
-                if (a == null || a.getId() == null) continue;
-                repo.markAlertAsRead(a.getId(), new AlertRepository.OnAlertUpdatedListener() {
-                    @Override public void onAlertUpdated() { runOnUiThread(() -> Toast.makeText(MainActivity.this, "Marked as read", Toast.LENGTH_SHORT).show()); }
-                    @Override public void onError(String error) { runOnUiThread(() -> Toast.makeText(MainActivity.this, "Error marking read: " + error, Toast.LENGTH_SHORT).show()); }
-                });
-            }
+
+        dialog.getListView().setOnItemLongClickListener((parent, v, position, id) -> {
+            Alert selected = alerts.get(position);
+            new AlertDialog.Builder(this)
+                    .setTitle("Manage Notification")
+                    .setItems(new String[]{"Mark as Read", "Delete Permanently"}, (d, which) -> {
+                        if (which == 0) repo.markAlertAsRead(selected.getId(), null);
+                        else repo.deleteAlert(selected.getId());
+                        dialog.dismiss();
+                    }).show();
+            return true;
         });
+
         dialog.show();
     }
 

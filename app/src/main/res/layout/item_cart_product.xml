@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="horizontal"
     android:paddingVertical="4dp"
     android:paddingHorizontal="8dp">
@@ -46,4 +47,13 @@
         android:text="₱0.00"
         android:textSize="14sp"
         android:textColor="@color/textColorPrimary" />
+
+    <ImageButton
+        android:id="@+id/btnRemoveItem"
+        android:layout_width="46dp"
+        android:layout_height="36dp"
+        android:src="@android:drawable/ic_delete"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:tint="@color/errorRed"
+        android:contentDescription="Remove item" />
 </LinearLayout>
